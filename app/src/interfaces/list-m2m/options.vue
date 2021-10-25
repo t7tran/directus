@@ -25,6 +25,11 @@
 			<p class="type-label">{{ t('selecting_items') }}</p>
 			<v-checkbox v-model="enableSelect" block :label="t('enable_select_button')" />
 		</div>
+
+		<div v-if="enableSelect" class="field full">
+			<p class="type-label">{{ t('filter') }}</p>
+			<interface-input-code :value="filter" language="json" type="json" @input="filter = $event" />
+		</div>
 	</div>
 </template>
 
@@ -61,7 +66,7 @@ export default defineComponent({
 			default: () => [],
 		},
 	},
-	emits: ['input'],
+	emits: ['input', 'update:filter'],
 	setup(props, { emit }) {
 		const { t } = useI18n();
 
@@ -103,6 +108,18 @@ export default defineComponent({
 			},
 		});
 
+		const filter = computed({
+			get() {
+				return props.value?.filter;
+			},
+			set(newFilter: any) {
+				emit('input', {
+					...(props.value || {}),
+					filter: newFilter,
+				});
+			},
+		});
+
 		const junctionCollection = computed(() => {
 			if (!props.fieldData || !props.relations || props.relations.length === 0) return null;
 			const { field } = props.fieldData;
@@ -118,7 +135,7 @@ export default defineComponent({
 			return collectionsStore.getCollection(junctionCollection.value);
 		});
 
-		return { t, template, enableCreate, enableSelect, junctionCollection, junctionCollectionInfo };
+		return { t, template, enableCreate, enableSelect, filter, junctionCollection, junctionCollectionInfo };
 	},
 });
 </script>
