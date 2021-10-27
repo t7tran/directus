@@ -17,6 +17,8 @@
 			<p class="type-label">{{ t('selecting_items') }}</p>
 			<v-checkbox v-model="enableSelect" block :label="t('enable_select_button')" />
 		</div>
+
+		<v-form v-if="enableSelect" v-model="formOptions" :fields="formFields" class="field full" />
 	</div>
 </template>
 
@@ -83,7 +85,42 @@ export default defineComponent({
 			},
 		});
 
-		return { t, template, enableCreate, enableSelect };
+		const relatedCollection = computed(() => {
+			if (!props.fieldData || !props.relations || props.relations.length === 0) return null;
+			const { field } = props.fieldData;
+			const relatedRelation = props.relations.find(
+				(relation) => relation.related_collection === props.collection && relation.meta?.one_field === field
+			);
+			return relatedRelation?.collection || null;
+		});
+
+		const formOptions = computed({
+			get() {
+				return { filter: props.value?.filter || null };
+			},
+			set(options: Record<string, unknown>) {
+				emit('input', {
+					...(props.value || {}),
+					...options,
+				});
+			},
+		});
+
+		const formFields = computed(() => [
+			{
+				field: 'filter',
+				name: t('filter'),
+				type: 'json',
+				meta: {
+					interface: 'system-filter',
+					options: {
+						collectionName: relatedCollection.value,
+					},
+				},
+			},
+		]);
+
+		return { t, template, enableCreate, enableSelect, formOptions, formFields };
 	},
 });
 </script>

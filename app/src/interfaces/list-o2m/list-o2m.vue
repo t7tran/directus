@@ -71,6 +71,7 @@
 			v-model:active="selectModalActive"
 			:collection="relatedCollection.collection"
 			:selection="selectedPrimaryKeys"
+			:filter="customFilter"
 			multiple
 			@input="$emit('input', $event.length > 0 ? $event : null)"
 		/>
@@ -79,7 +80,7 @@
 
 <script lang="ts">
 import { useI18n } from 'vue-i18n';
-import { defineComponent, ref, computed, watch, PropType } from 'vue';
+import { defineComponent, ref, computed, watch, PropType, inject } from 'vue';
 import api from '@/api';
 import { useCollection } from '@directus/shared/composables';
 import { useCollectionsStore, useRelationsStore, useFieldsStore, usePermissionsStore, useUserStore } from '@/stores/';
@@ -92,6 +93,10 @@ import { getFieldsFromTemplate } from '@directus/shared/utils';
 import { addRelatedPrimaryKeyToFields } from '@/utils/add-related-primary-key-to-fields';
 import Draggable from 'vuedraggable';
 import adjustFieldsForDisplays from '@/utils/adjust-fields-for-displays';
+import { Filter } from '@directus/shared/types';
+import { parseFilter } from '@/utils/parse-filter';
+import { render } from 'micromustache';
+import { deepMap } from '@directus/shared/utils';
 
 export default defineComponent({
 	components: { DrawerItem, DrawerCollection, Draggable },
@@ -128,6 +133,10 @@ export default defineComponent({
 			type: Boolean,
 			default: true,
 		},
+		filter: {
+			type: Object as PropType<Filter>,
+			default: null,
+		},
 	},
 	emits: ['input'],
 	setup(props, { emit }) {
@@ -138,6 +147,20 @@ export default defineComponent({
 		const fieldsStore = useFieldsStore();
 		const permissionsStore = usePermissionsStore();
 		const userStore = useUserStore();
+
+		const values = inject('values', ref<Record<string, any>>({}));
+
+		const customFilter = computed(() => {
+			return parseFilter(
+				deepMap(props.filter, (val: any) => {
+					if (val && typeof val === 'string') {
+						return render(val, values.value);
+					}
+
+					return val;
+				})
+			);
+		});
 
 		const { relation, relatedCollection, relatedPrimaryKeyField } = useRelation();
 
@@ -181,6 +204,7 @@ export default defineComponent({
 			templateWithDefaults,
 			createAllowed,
 			updateAllowed,
+			customFilter,
 		};
 
 		function getItemFromIndex(index: number) {
