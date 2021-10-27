@@ -146,15 +146,15 @@ export default defineComponent({
 		const values = inject('values', ref<Record<string, any>>({}));
 
 		const customFilter = computed(() => {
-			return parseFilter(deepMap(props.filter, interpolateValue));
+			return parseFilter(
+				deepMap(props.filter, (val: any) => {
+					if (val && typeof val === 'string') {
+						return render(val, values.value);
+					}
 
-			function interpolateValue(val: any) {
-				if (val && typeof val === 'string') {
-					return render(val, values.value);
-				}
-
-				return val;
-			}
+					return val;
+				})
+			);
 		});
 
 		const { value, collection, field } = toRefs(props);

@@ -26,10 +26,7 @@
 			<v-checkbox v-model="enableSelect" block :label="t('enable_select_button')" />
 		</div>
 
-		<div v-if="enableSelect" class="field full">
-			<p class="type-label">{{ t('filter') }}</p>
-			<interface-input-code :value="filter" language="json" type="json" @input="filter = $event" />
-		</div>
+		<v-form v-if="enableSelect" v-model="formOptions" :fields="formFields" class="field full" />
 	</div>
 </template>
 
@@ -108,18 +105,6 @@ export default defineComponent({
 			},
 		});
 
-		const filter = computed({
-			get() {
-				return props.value?.filter;
-			},
-			set(newFilter: any) {
-				emit('input', {
-					...(props.value || {}),
-					filter: newFilter,
-				});
-			},
-		});
-
 		const junctionCollection = computed(() => {
 			if (!props.fieldData || !props.relations || props.relations.length === 0) return null;
 			const { field } = props.fieldData;
@@ -128,6 +113,11 @@ export default defineComponent({
 			);
 			return junctionRelation?.collection || null;
 		});
+		const relatedCollection = computed(() => {
+			if (!props.fieldData || !props.relations || props.relations.length === 0) return null;
+			const junctionRelation = props.relations.find((relation) => relation.related_collection !== props.collection);
+			return junctionRelation?.related_collection || null;
+		});
 
 		const junctionCollectionInfo = computed(() => {
 			if (!junctionCollection.value) return null;
@@ -135,7 +125,42 @@ export default defineComponent({
 			return collectionsStore.getCollection(junctionCollection.value);
 		});
 
-		return { t, template, enableCreate, enableSelect, filter, junctionCollection, junctionCollectionInfo };
+		const formOptions = computed({
+			get() {
+				return { filter: props.value?.filter || null };
+			},
+			set(options: Record<string, unknown>) {
+				emit('input', {
+					...(props.value || {}),
+					...options,
+				});
+			},
+		});
+
+		const formFields = computed(() => [
+			{
+				field: 'filter',
+				name: t('filter'),
+				type: 'json',
+				meta: {
+					interface: 'system-filter',
+					options: {
+						collectionName: relatedCollection.value,
+					},
+				},
+			},
+		]);
+
+		return {
+			t,
+			template,
+			enableCreate,
+			enableSelect,
+			junctionCollection,
+			junctionCollectionInfo,
+			formOptions,
+			formFields,
+		};
 	},
 });
 </script>
