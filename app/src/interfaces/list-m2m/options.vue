@@ -63,7 +63,7 @@ export default defineComponent({
 			default: () => [],
 		},
 	},
-	emits: ['input', 'update:filter'],
+	emits: ['input'],
 	setup(props, { emit }) {
 		const { t } = useI18n();
 
