@@ -53,6 +53,24 @@ export function useItem(collection: Ref<string>, primaryKey: Ref<string | number
 	const isBatch = computed(() => typeof primaryKey.value === 'string' && primaryKey.value.includes(','));
 	const isSingle = computed(() => !!collectionInfo.value?.meta?.singleton);
 
+	// copied from use-item.ts, should move into useCollection?
+	const defaultValues = computed(() => {
+		return fields.value.reduce(function (acc, field) {
+			if (
+				field.schema?.default_value !== undefined &&
+				// Ignore autoincremented integer PK field
+				!(
+					field.schema.is_primary_key &&
+					field.schema.data_type === 'integer' &&
+					typeof field.schema.default_value === 'string'
+				)
+			) {
+				acc[field.field] = field.schema?.default_value;
+			}
+			return acc;
+		}, {} as Record<string, any>);
+	});
+
 	const isArchived = computed(() => {
 		if (!collectionInfo.value?.meta?.archive_field) return null;
 
@@ -114,7 +132,8 @@ export function useItem(collection: Ref<string>, primaryKey: Ref<string | number
 		saving.value = true;
 		validationErrors.value = [];
 
-		const errors = validate(edits.value);
+		const baseValues = isNew.value === true ? defaultValues.value : item.value;
+		const errors = validate({ ...baseValues, ...edits.value });
 
 		if (errors.length > 0) {
 			validationErrors.value = errors;
