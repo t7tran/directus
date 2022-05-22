@@ -158,6 +158,15 @@ export default function generateJoi(filter: Record<string, any> | null, options?
 				schema[key] = Joi.any().invalid(null);
 			}
 
+			if (operator === '_exist') {
+				schema[key] = Joi.any().exist();
+			}
+
+			if (operator === '_nexist') {
+				options.requireAll = false;
+				schema[key] = Joi.any().forbidden();
+			}
+
 			if (operator === '_empty') {
 				schema[key] = Joi.any().valid('');
 			}
