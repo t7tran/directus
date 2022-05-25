@@ -141,6 +141,14 @@ function getJoi(operator: string, value: any) {
 		return Joi.any().invalid(null);
 	}
 
+	if (operator === '_exist') {
+		return Joi.any().exist();
+	}
+
+	if (operator === '_nexist') {
+		return Joi.any().forbidden();
+	}
+
 	if (operator === '_empty') {
 		return Joi.any().valid('');
 	}
