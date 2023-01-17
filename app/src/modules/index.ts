@@ -45,6 +45,7 @@ export function registerModules(modules: ModuleConfig[]): {
 				path: `/${module.id}`,
 				component: RouterPass,
 				children: module.routes,
+				meta: module.meta,
 			});
 		}
 	};

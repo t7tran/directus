@@ -1,4 +1,4 @@
-import { RouteRecordRaw } from 'vue-router';
+import { RouteMeta, RouteRecordRaw } from 'vue-router';
 import { Permission, User } from '../types';
 
 export interface ModuleConfig {
@@ -9,5 +9,6 @@ export interface ModuleConfig {
 
 	routes: RouteRecordRaw[];
 	hidden?: boolean;
+	meta?: RouteMeta;
 	preRegisterCheck?: (user: User, permissions: Permission[]) => Promise<boolean> | boolean;
 }
