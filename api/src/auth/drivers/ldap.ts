@@ -10,7 +10,6 @@ import ldap, {
 	InvalidCredentialsError,
 	InsufficientAccessRightsError,
 } from 'ldapjs';
-import ms from 'ms';
 import { getIPFromReq } from '../../utils/get-ip-from-req';
 import Joi from 'joi';
 import { AuthDriver } from '../auth';
@@ -29,6 +28,7 @@ import asyncHandler from '../../utils/async-handler';
 import env from '../../env';
 import { respond } from '../../middleware/respond';
 import logger from '../../logger';
+import { COOKIE_OPTIONS } from '../../constants';
 
 interface UserInfo {
 	dn: string;
@@ -404,14 +404,11 @@ export function createLDAPAuthRouter(provider: string): Router {
 				payload.data.refresh_token = refreshToken;
 			}
 
+			if (env.ACCESS_TOKEN_COOKIE_NAME) {
+				res.cookie(env.ACCESS_TOKEN_COOKIE_NAME, accessToken, COOKIE_OPTIONS.accessToken);
+			}
 			if (mode === 'cookie') {
-				res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
-					httpOnly: true,
-					domain: env.REFRESH_TOKEN_COOKIE_DOMAIN,
-					maxAge: ms(env.REFRESH_TOKEN_TTL as string),
-					secure: env.REFRESH_TOKEN_COOKIE_SECURE ?? false,
-					sameSite: (env.REFRESH_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
-				});
+				res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, COOKIE_OPTIONS.refreshToken);
 			}
 
 			res.locals.payload = payload;

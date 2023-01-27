@@ -53,12 +53,21 @@ export const GENERATE_SPECIAL = ['uuid', 'date-created', 'role-created', 'user-c
 export const UUID_REGEX = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 
 export const COOKIE_OPTIONS = {
-	httpOnly: true,
-	domain: env.REFRESH_TOKEN_COOKIE_DOMAIN,
-	maxAge: ms(env.REFRESH_TOKEN_TTL as string),
-	secure: env.REFRESH_TOKEN_COOKIE_SECURE ?? false,
-	sameSite: (env.REFRESH_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
-};
+	accessToken: {
+		httpOnly: true,
+		domain: env.ACCESS_TOKEN_COOKIE_DOMAIN,
+		maxAge: ms(env.ACCESS_TOKEN_TTL as string),
+		secure: env.ACCESS_TOKEN_COOKIE_SECURE ?? false,
+		sameSite: (env.ACCESS_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
+	},
+	refreshToken: {
+		httpOnly: true,
+		domain: env.REFRESH_TOKEN_COOKIE_DOMAIN,
+		maxAge: ms(env.REFRESH_TOKEN_TTL as string),
+		secure: env.REFRESH_TOKEN_COOKIE_SECURE ?? false,
+		sameSite: (env.REFRESH_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
+	},
+} as const;
 
 export const ROBOTSTXT = `
 User-agent: *
