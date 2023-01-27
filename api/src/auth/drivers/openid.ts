@@ -3,7 +3,6 @@ import { parseJSON } from '@directus/shared/utils';
 import express, { Router } from 'express';
 import flatten from 'flat';
 import jwt from 'jsonwebtoken';
-import ms from 'ms';
 import { Client, errors, generators, Issuer } from 'openid-client';
 import { getAuthProvider } from '../../auth';
 import env from '../../env';
@@ -24,6 +23,7 @@ import { getConfigFromEnv } from '../../utils/get-config-from-env';
 import { getIPFromReq } from '../../utils/get-ip-from-req';
 import { Url } from '../../utils/url';
 import { LocalAuthDriver } from './local';
+import { COOKIE_OPTIONS } from '../../constants';
 
 export class OpenIDAuthDriver extends LocalAuthDriver {
 	client: Promise<Client>;
@@ -352,14 +352,11 @@ export function createOpenIDAuthRouter(providerName: string): Router {
 
 			const { accessToken, refreshToken, expires } = authResponse;
 
+			if (env.ACCESS_TOKEN_COOKIE_NAME) {
+				res.cookie(env.ACCESS_TOKEN_COOKIE_NAME, accessToken, COOKIE_OPTIONS.accessToken);
+			}
 			if (redirect) {
-				res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
-					httpOnly: true,
-					domain: env.REFRESH_TOKEN_COOKIE_DOMAIN,
-					maxAge: ms(env.REFRESH_TOKEN_TTL as string),
-					secure: env.REFRESH_TOKEN_COOKIE_SECURE ?? false,
-					sameSite: (env.REFRESH_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
-				});
+				res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, COOKIE_OPTIONS.refreshToken);
 
 				return res.redirect(redirect);
 			}
