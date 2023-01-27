@@ -1,7 +1,5 @@
 import { Knex } from 'knex';
 import { merge } from 'lodash';
-import macosRelease from 'macos-release';
-import { nanoid } from 'nanoid';
 import os from 'os';
 import { performance } from 'perf_hooks';
 // @ts-ignore
@@ -11,12 +9,14 @@ import getDatabase, { hasDatabaseConnection } from '../database';
 import env from '../env';
 import logger from '../logger';
 import { rateLimiter } from '../middleware/rate-limiter';
-import storage from '../storage';
+import { getStorage } from '../storage';
 import { AbstractServiceOptions } from '../types';
 import { Accountability, SchemaOverview } from '@directus/shared/types';
 import { toArray } from '@directus/shared/utils';
 import getMailer from '../mailer';
 import { SettingsService } from './settings';
+import { getOSInfo } from '../utils/get-os-info';
+import { Readable } from 'node:stream';
 
 export class ServerService {
 	knex: Knex;
@@ -59,12 +59,14 @@ export class ServerService {
 			} else {
 				info.rateLimit = false;
 			}
+
+			info.flows = {
+				execAllowedModules: env.FLOWS_EXEC_ALLOWED_MODULES ? toArray(env.FLOWS_EXEC_ALLOWED_MODULES) : [],
+			};
 		}
 
 		if (this.accountability?.admin === true) {
-			const osType = os.type() === 'Darwin' ? 'macOS' : os.type();
-
-			const osVersion = osType === 'macOS' ? `${macosRelease().name} (${macosRelease().version})` : os.release();
+			const { osType, osVersion } = getOSInfo();
 
 			info.directus = {
 				version,
@@ -87,6 +89,8 @@ export class ServerService {
 	}
 
 	async health(): Promise<Record<string, any>> {
+		const { nanoid } = await import('nanoid');
+
 		const checkID = nanoid(5);
 
 		// Based on https://tools.ietf.org/id/draft-inadarei-api-health-check-05.html#name-componenttype
@@ -158,7 +162,7 @@ export class ServerService {
 					componentType: 'datastore',
 					observedUnit: 'ms',
 					observedValue: 0,
-					threshold: 150,
+					threshold: env.DB_HEALTHCHECK_THRESHOLD ? +env.DB_HEALTHCHECK_THRESHOLD : 150,
 				},
 			];
 
@@ -214,7 +218,7 @@ export class ServerService {
 						componentType: 'cache',
 						observedValue: 0,
 						observedUnit: 'ms',
-						threshold: 150,
+						threshold: env.CACHE_HEALTHCHECK_THRESHOLD ? +env.CACHE_HEALTHCHECK_THRESHOLD : 150,
 					},
 				],
 			};
@@ -254,7 +258,7 @@ export class ServerService {
 						componentType: 'ratelimiter',
 						observedValue: 0,
 						observedUnit: 'ms',
-						threshold: 150,
+						threshold: env.RATE_LIMITER_HEALTHCHECK_THRESHOLD ? +env.RATE_LIMITER_HEALTHCHECK_THRESHOLD : 150,
 					},
 				],
 			};
@@ -283,27 +287,32 @@ export class ServerService {
 		}
 
 		async function testStorage(): Promise<Record<string, HealthCheck[]>> {
+			const storage = await getStorage();
+
 			const checks: Record<string, HealthCheck[]> = {};
 
 			for (const location of toArray(env.STORAGE_LOCATIONS)) {
-				const disk = storage.disk(location);
-
+				const disk = storage.location(location);
+				const envThresholdKey = `STORAGE_${location}_HEALTHCHECK_THRESHOLD`.toUpperCase();
 				checks[`storage:${location}:responseTime`] = [
 					{
 						status: 'ok',
 						componentType: 'objectstore',
 						observedValue: 0,
 						observedUnit: 'ms',
-						threshold: 750,
+						threshold: env[envThresholdKey] ? +env[envThresholdKey] : 750,
 					},
 				];
 
 				const startTime = performance.now();
 
 				try {
-					await disk.put(`health-${checkID}`, 'check');
-					await disk.get(`health-${checkID}`);
-					await disk.delete(`health-${checkID}`);
+					await disk.write(`health-${checkID}`, Readable.from(['check']));
+					const fileStream = await disk.read(`health-${checkID}`);
+					fileStream.on('data', async () => {
+						fileStream.destroy();
+						await disk.delete(`health-${checkID}`);
+					});
 				} catch (err: any) {
 					checks[`storage:${location}:responseTime`][0].status = 'error';
 					checks[`storage:${location}:responseTime`][0].output = err;

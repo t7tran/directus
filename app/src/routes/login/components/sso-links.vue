@@ -12,7 +12,7 @@
 					<v-icon :name="provider.icon" />
 				</div>
 				<div class="sso-title">
-					{{ t('log_in_with', { provider: provider.name }) }}
+					{{ t('log_in_with', { provider: provider.label }) }}
 				</div>
 			</a>
 		</template>
@@ -23,7 +23,7 @@
 import { useI18n } from 'vue-i18n';
 import { defineComponent, ref, computed, watch, toRefs, PropType } from 'vue';
 import { useRouter } from 'vue-router';
-import { AuthProvider } from '@/types';
+import { AuthProvider } from '@/types/login';
 import { AUTH_SSO_DRIVERS } from '@/constants';
 import { translateAPIError } from '@/lang';
 import { getRootPath } from '@/utils/get-root-path';
@@ -50,7 +50,8 @@ export default defineComponent({
 				ssoProviders.value = providers.value
 					.filter((provider: AuthProvider) => AUTH_SSO_DRIVERS.includes(provider.driver))
 					.map((provider: AuthProvider) => ({
-						name: formatTitle(provider.name),
+						name: provider.name,
+						label: provider.label || formatTitle(provider.name),
 						link: `${getRootPath()}auth/login/${provider.name}?redirect=${window.location.href.replace(
 							location.search,
 							''

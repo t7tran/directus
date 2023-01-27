@@ -14,7 +14,6 @@
 			:items="items"
 			:loading="loading"
 			:row-height="tableRowHeight"
-			server-sort
 			:item-key="primaryKeyField?.field"
 			:show-manual-sort="sortField !== null"
 			:manual-sort-key="sortField"
@@ -179,15 +178,15 @@ export default {
 
 <script lang="ts" setup>
 import { HeaderRaw } from '@/components/v-table/types';
-import useShortcut from '@/composables/use-shortcut';
-import { Collection } from '@/types';
+import { useShortcut } from '@/composables/use-shortcut';
+import { Collection } from '@/types/collections';
 import { useSync } from '@directus/shared/composables';
 import { Field, Filter, Item, ShowSelect } from '@directus/shared/types';
 import { ComponentPublicInstance, inject, ref, Ref, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { get } from '@/utils/get-with-arrays';
-import useAliasFields, { AliasField } from '@/composables/use-alias-fields';
-import adjustFieldsForDisplays from '@/utils/adjust-fields-for-displays';
+import { get } from '@directus/shared/utils';
+import { useAliasFields, AliasField } from '@/composables/use-alias-fields';
+import { adjustFieldsForDisplays } from '@/utils/adjust-fields-for-displays';
 import { isEmpty, merge } from 'lodash';
 
 interface Props {

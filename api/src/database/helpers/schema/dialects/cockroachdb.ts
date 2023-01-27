@@ -1,29 +1,24 @@
-import { SchemaHelper } from '../types';
+import { KNEX_TYPES } from '@directus/shared/constants';
+import { Options, SchemaHelper } from '../types';
 
 export class SchemaHelperCockroachDb extends SchemaHelper {
-	async changeToText(
+	async changeToType(
 		table: string,
 		column: string,
-		options: { nullable?: boolean; default?: any } = {}
+		type: typeof KNEX_TYPES[number],
+		options: Options = {}
 	): Promise<void> {
-		await this.changeToTypeByCopy(table, column, options, (builder, column) => builder.text(column));
+		await this.changeToTypeByCopy(table, column, type, options);
 	}
 
-	async changeToString(
-		table: string,
-		column: string,
-		options: { nullable?: boolean; default?: any; length?: number } = {}
-	): Promise<void> {
-		await this.changeToTypeByCopy(table, column, options, (builder, column, options) =>
-			builder.string(column, options.length)
-		);
-	}
-
-	async changeToInteger(
-		table: string,
-		column: string,
-		options: { nullable?: boolean; default?: any } = {}
-	): Promise<void> {
-		await this.changeToTypeByCopy(table, column, options, (builder, column) => builder.integer(column));
+	constraintName(existingName: string): string {
+		const suffix = '_replaced';
+		// CockroachDB does not allow for dropping/creating constraints with the same
+		// name in a single transaction. reference issue #14873
+		if (existingName.endsWith(suffix)) {
+			return existingName.substring(0, existingName.length - suffix.length);
+		} else {
+			return existingName + suffix;
+		}
 	}
 }

@@ -9,10 +9,10 @@ import {
 	OperationHandler,
 	SchemaOverview,
 } from '@directus/shared/types';
-import { applyOptionsData } from '@directus/shared/utils';
+import { applyOptionsData, toArray } from '@directus/shared/utils';
 import fastRedact from 'fast-redact';
 import { Knex } from 'knex';
-import { omit } from 'lodash';
+import { omit, pick } from 'lodash';
 import { get } from 'micromustache';
 import { schedule, validate } from 'node-cron';
 import getDatabase from './database';
@@ -56,6 +56,7 @@ type TriggerHandler = {
 const TRIGGER_KEY = '$trigger';
 const ACCOUNTABILITY_KEY = '$accountability';
 const LAST_KEY = '$last';
+const ENV_KEY = '$env';
 
 class FlowManager {
 	private isLoaded = false;
@@ -135,31 +136,33 @@ class FlowManager {
 		const flows = await flowsService.readByQuery({
 			filter: { status: { _eq: 'active' } },
 			fields: ['*', 'operations.*'],
+			limit: -1,
 		});
 
 		const flowTrees = flows.map((flow) => constructFlowTree(flow));
 
 		for (const flow of flowTrees) {
 			if (flow.trigger === 'event') {
-				const events: string[] =
-					flow.options?.scope
-						?.map((scope: string) => {
-							if (['items.create', 'items.update', 'items.delete'].includes(scope)) {
-								return (
-									flow.options?.collections?.map((collection: string) => {
-										if (collection.startsWith('directus_')) {
-											const action = scope.split('.')[1];
-											return collection.substring(9) + '.' + action;
-										}
+				const events: string[] = flow.options?.scope
+					? toArray(flow.options.scope)
+							.map((scope: string) => {
+								if (['items.create', 'items.update', 'items.delete'].includes(scope)) {
+									return (
+										flow.options?.collections?.map((collection: string) => {
+											if (collection.startsWith('directus_')) {
+												const action = scope.split('.')[1];
+												return collection.substring(9) + '.' + action;
+											}
 
-										return `${collection}.${scope}`;
-									}) ?? []
-								);
-							}
+											return `${collection}.${scope}`;
+										}) ?? []
+									);
+								}
 
-							return scope;
-						})
-						?.flat() ?? [];
+								return scope;
+							})
+							.flat()
+					: [];
 
 				if (flow.options.type === 'filter') {
 					const handler: FilterHandler = (payload, meta, context) =>
@@ -294,9 +297,11 @@ class FlowManager {
 			[TRIGGER_KEY]: data,
 			[LAST_KEY]: data,
 			[ACCOUNTABILITY_KEY]: context?.accountability ?? null,
+			[ENV_KEY]: pick(env, env.FLOWS_ENV_ALLOW_LIST ? toArray(env.FLOWS_ENV_ALLOW_LIST) : []),
 		};
 
 		let nextOperation = flow.operation;
+		let lastOperationStatus: 'resolve' | 'reject' | 'unknown' = 'unknown';
 
 		const steps: {
 			operation: string;
@@ -310,6 +315,7 @@ class FlowManager {
 
 			keyedData[nextOperation.key] = data;
 			keyedData[LAST_KEY] = data;
+			lastOperationStatus = status;
 			steps.push({ operation: nextOperation!.id, key: nextOperation.key, status, options });
 
 			nextOperation = successor;
@@ -329,6 +335,7 @@ class FlowManager {
 				collection: 'directus_flows',
 				ip: accountability?.ip ?? null,
 				user_agent: accountability?.userAgent ?? null,
+				origin: accountability?.origin ?? null,
 				item: flow.id,
 			});
 
@@ -348,6 +355,10 @@ class FlowManager {
 					},
 				});
 			}
+		}
+
+		if (flow.trigger === 'event' && flow.options.type === 'filter' && lastOperationStatus === 'reject') {
+			throw keyedData[LAST_KEY];
 		}
 
 		if (flow.options.return === '$all') {

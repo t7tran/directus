@@ -242,11 +242,19 @@ export class UsersService extends ItemsService {
 		}
 
 		if (data.provider !== undefined) {
-			throw new InvalidPayloadException(`You can't change the "provider" value manually.`);
+			if (this.accountability && this.accountability.admin !== true) {
+				throw new InvalidPayloadException(`You can't change the "provider" value manually.`);
+			}
+
+			data.auth_data = null;
 		}
 
 		if (data.external_identifier !== undefined) {
-			throw new InvalidPayloadException(`You can't change the "external_identifier" value manually.`);
+			if (this.accountability && this.accountability.admin !== true) {
+				throw new InvalidPayloadException(`You can't change the "external_identifier" value manually.`);
+			}
+
+			data.auth_data = null;
 		}
 
 		return await super.updateMany(keys, data, opts);
@@ -357,7 +365,11 @@ export class UsersService extends ItemsService {
 		const STALL_TIME = 500;
 		const timeStart = performance.now();
 
-		const user = await this.knex.select('status', 'password').from('directus_users').where({ email }).first();
+		const user = await this.knex
+			.select('status', 'password')
+			.from('directus_users')
+			.whereRaw('LOWER(??) = ?', ['email', email.toLowerCase()])
+			.first();
 
 		if (user?.status !== 'active') {
 			await stall(STALL_TIME, timeStart);

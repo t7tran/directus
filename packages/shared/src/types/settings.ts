@@ -26,10 +26,17 @@ export type SettingsStorageAssetPreset = {
 	transforms: any[] | null;
 };
 
+export type CustomAspectRatio = {
+	text: string;
+	value: number;
+};
+
 export type Settings = {
 	id: 1;
 	project_name: string;
+	project_descriptor: string | null;
 	project_url: string | null;
+	default_language: string | null;
 	project_color: string | null;
 	project_logo: string | null;
 	public_foreground: string | null;
@@ -39,6 +46,7 @@ export type Settings = {
 	auth_password_policy: string | null;
 	storage_asset_transform: string;
 	storage_asset_presets: SettingsStorageAssetPreset[] | null;
+	custom_aspect_ratios: CustomAspectRatio[] | null;
 	custom_css: string | null;
 	storage_default_folder: string | null;
 	basemaps: any[] | null;

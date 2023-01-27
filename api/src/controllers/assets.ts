@@ -1,13 +1,15 @@
-import { Range } from '@directus/drive';
+// @ts-expect-error https://github.com/microsoft/TypeScript/issues/49721
+import type { Range } from '@directus/storage';
+
 import { parseJSON } from '@directus/shared/utils';
 import { Router } from 'express';
-import helmet from 'helmet';
 import { merge, pick } from 'lodash';
 import ms from 'ms';
 import { ASSET_TRANSFORM_QUERY_KEYS, SYSTEM_ASSET_ALLOW_LIST } from '../constants';
 import getDatabase from '../database';
 import env from '../env';
 import { InvalidQueryException, RangeNotSatisfiableException } from '../exceptions';
+import logger from '../logger';
 import useCollection from '../middleware/use-collection';
 import { AssetsService, PayloadService } from '../services';
 import { TransformationMethods, TransformationParams, TransformationPreset } from '../types/assets';
@@ -109,17 +111,21 @@ router.get(
 		}
 	}),
 
-	helmet.contentSecurityPolicy(
-		merge(
-			{
-				useDefaults: false,
-				directives: {
-					defaultSrc: ['none'],
+	asyncHandler(async (req, res, next) => {
+		const helmet = await import('helmet');
+
+		return helmet.contentSecurityPolicy(
+			merge(
+				{
+					useDefaults: false,
+					directives: {
+						defaultSrc: ['none'],
+					},
 				},
-			},
-			getConfigFromEnv('ASSETS_CONTENT_SECURITY_POLICY')
-		)
-	),
+				getConfigFromEnv('ASSETS_CONTENT_SECURITY_POLICY')
+			)
+		)(req, res, next);
+	}),
 
 	// Return file
 	asyncHandler(async (req, res) => {
@@ -186,7 +192,37 @@ router.get(
 			return res.end();
 		}
 
-		stream.pipe(res);
+		let isDataSent = false;
+
+		stream.on('data', (chunk) => {
+			isDataSent = true;
+			res.write(chunk);
+		});
+
+		stream.on('end', () => {
+			res.end();
+		});
+
+		stream.on('error', (e) => {
+			logger.error(e, `Couldn't stream file ${file.id} to the client`);
+
+			if (!isDataSent) {
+				res.removeHeader('Content-Type');
+				res.removeHeader('Content-Disposition');
+				res.removeHeader('Cache-Control');
+
+				res.status(500).json({
+					errors: [
+						{
+							message: 'An unexpected error occurred.',
+							extensions: {
+								code: 'INTERNAL_SERVER_ERROR',
+							},
+						},
+					],
+				});
+			}
+		});
 	})
 );
 

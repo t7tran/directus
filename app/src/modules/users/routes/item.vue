@@ -1,7 +1,7 @@
 <template>
 	<private-view :title="title">
 		<template #title-outer:prepend>
-			<v-button class="header-icon" rounded icon secondary exact @click="router.back()">
+			<v-button class="header-icon" rounded icon secondary exact @click="navigateBack">
 				<v-icon name="arrow_back" />
 			</v-button>
 		</template>
@@ -182,24 +182,25 @@
 </template>
 
 <script lang="ts">
-import { ComponentPublicInstance, computed, defineComponent, ref, toRefs, watch } from 'vue';
+import { computed, defineComponent, ref, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import api from '@/api';
-import useEditsGuard from '@/composables/use-edits-guard';
-import useFormFields from '@/composables/use-form-fields';
-import useItem from '@/composables/use-item';
+import { useEditsGuard } from '@/composables/use-edits-guard';
+import { useFormFields } from '@/composables/use-form-fields';
+import { useItem } from '@/composables/use-item';
 import { usePermissions } from '@/composables/use-permissions';
-import useShortcut from '@/composables/use-shortcut';
+import { useShortcut } from '@/composables/use-shortcut';
 import { setLanguage } from '@/lang/set-language';
-import { useUserStore } from '@/stores';
-import { useCollectionsStore, useFieldsStore, useServerStore } from '@/stores/';
-import { getRootPath } from '@/utils/get-root-path';
+import { useUserStore } from '@/stores/user';
+import { useCollectionsStore } from '@/stores/collections';
+import { useFieldsStore } from '@/stores/fields';
+import { useServerStore } from '@/stores/server';
 import { unexpectedError } from '@/utils/unexpected-error';
 import { userName } from '@/utils/user-name';
-import CommentsSidebarDetail from '@/views/private/components/comments-sidebar-detail';
-import RevisionsDrawerDetail from '@/views/private/components/revisions-drawer-detail';
-import SaveOptions from '@/views/private/components/save-options';
+import CommentsSidebarDetail from '@/views/private/components/comments-sidebar-detail.vue';
+import RevisionsDrawerDetail from '@/views/private/components/revisions-drawer-detail.vue';
+import SaveOptions from '@/views/private/components/save-options.vue';
 import { useCollection } from '@directus/shared/composables';
 import { Field } from '@directus/shared/types';
 import { useRouter } from 'vue-router';
@@ -235,7 +236,7 @@ export default defineComponent({
 
 		const { info: collectionInfo } = useCollection('directus_users');
 
-		const revisionsDrawerDetail = ref<ComponentPublicInstance | null>(null);
+		const revisionsDrawerDetail = ref<InstanceType<typeof RevisionsDrawerDetail> | null>(null);
 
 		const {
 			isNew,
@@ -288,21 +289,12 @@ export default defineComponent({
 			usePermissions(ref('directus_users'), item, isNew);
 
 		// These fields will be shown in the sidebar instead
-		const fieldsDenyList = [
-			'id',
-			'external_id',
-			'last_page',
-			'created_on',
-			'created_by',
-			'modified_by',
-			'modified_on',
-			'last_access',
-		];
+		const fieldsDenyList = ['id', 'last_page', 'created_on', 'created_by', 'modified_by', 'modified_on', 'last_access'];
 
 		const fieldsFiltered = computed(() => {
 			return fields.value.filter((field: Field) => {
-				// These fields should only be editable when creating new users
-				if (!isNew.value && ['provider', 'external_identifier'].includes(field.field)) {
+				// These fields should only be editable when creating new users or by administrators
+				if (!isNew.value && ['provider', 'external_identifier'].includes(field.field) && !userStore.isAdmin) {
 					field.meta.readonly = true;
 				}
 				return !fieldsDenyList.includes(field.field);
@@ -327,6 +319,7 @@ export default defineComponent({
 			item,
 			loading,
 			isNew,
+			navigateBack,
 			breadcrumb,
 			edits,
 			hasEdits,
@@ -367,6 +360,16 @@ export default defineComponent({
 			avatarError,
 			isSavable,
 		};
+
+		function navigateBack() {
+			const backState = router.options.history.state.back;
+			if (typeof backState !== 'string' || !backState.startsWith('/login')) {
+				router.back();
+				return;
+			}
+
+			router.push('/users');
+		}
 
 		function useBreadcrumb() {
 			const breadcrumb = computed(() => [
@@ -443,8 +446,7 @@ export default defineComponent({
 			if (newLang && newLang !== locale.value) {
 				await setLanguage(newLang);
 
-				await fieldsStore.hydrate();
-				await collectionsStore.hydrate();
+				await Promise.all([fieldsStore.hydrate(), collectionsStore.hydrate()]);
 			}
 		}
 
@@ -476,7 +478,7 @@ export default defineComponent({
 					});
 
 					avatarSrc.value = response.data.data.avatar?.id
-						? getRootPath() + `assets/${response.data.data.avatar.id}?key=system-medium-cover`
+						? `/assets/${response.data.data.avatar.id}?key=system-medium-cover`
 						: null;
 
 					roleName.value = response.data.data?.role?.name;

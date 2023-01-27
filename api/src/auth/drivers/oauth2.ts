@@ -1,18 +1,19 @@
 import { BaseException } from '@directus/shared/exceptions';
 import { parseJSON } from '@directus/shared/utils';
-import { Router } from 'express';
+import express, { Router } from 'express';
 import flatten from 'flat';
 import jwt from 'jsonwebtoken';
-import ms from 'ms';
 import { Client, errors, generators, Issuer } from 'openid-client';
 import { getAuthProvider } from '../../auth';
 import env from '../../env';
 import {
 	InvalidConfigException,
 	InvalidCredentialsException,
+	InvalidProviderException,
 	InvalidTokenException,
 	ServiceUnavailableException,
 } from '../../exceptions';
+import { RecordNotUniqueException } from '../../exceptions/database/record-not-unique';
 import logger from '../../logger';
 import { respond } from '../../middleware/respond';
 import { AuthenticationService, UsersService } from '../../services';
@@ -22,6 +23,7 @@ import { getConfigFromEnv } from '../../utils/get-config-from-env';
 import { getIPFromReq } from '../../utils/get-ip-from-req';
 import { Url } from '../../utils/url';
 import { LocalAuthDriver } from './local';
+import { COOKIE_OPTIONS } from '../../constants';
 
 export class OAuth2AuthDriver extends LocalAuthDriver {
 	client: Client;
@@ -101,8 +103,8 @@ export class OAuth2AuthDriver extends LocalAuthDriver {
 	}
 
 	async getUserID(payload: Record<string, any>): Promise<string> {
-		if (!payload.code || !payload.codeVerifier) {
-			logger.trace('[OAuth2] No code or codeVerifier in payload');
+		if (!payload.code || !payload.codeVerifier || !payload.state) {
+			logger.warn('[OAuth2] No code, codeVerifier or state in payload');
 			throw new InvalidCredentialsException();
 		}
 
@@ -148,19 +150,27 @@ export class OAuth2AuthDriver extends LocalAuthDriver {
 
 		// Is public registration allowed?
 		if (!allowPublicRegistration) {
-			logger.trace(`[OAuth2] User doesn't exist, and public registration not allowed for provider "${provider}"`);
+			logger.warn(`[OAuth2] User doesn't exist, and public registration not allowed for provider "${provider}"`);
 			throw new InvalidCredentialsException();
 		}
 
-		await this.usersService.createOne({
-			provider,
-			first_name: userInfo[this.config.firstNameKey],
-			last_name: userInfo[this.config.lastNameKey],
-			email: email,
-			external_identifier: identifier,
-			role: this.config.defaultRoleId,
-			auth_data: tokenSet.refresh_token && JSON.stringify({ refreshToken: tokenSet.refresh_token }),
-		});
+		try {
+			await this.usersService.createOne({
+				provider,
+				first_name: userInfo[this.config.firstNameKey],
+				last_name: userInfo[this.config.lastNameKey],
+				email: email,
+				external_identifier: identifier,
+				role: this.config.defaultRoleId,
+				auth_data: tokenSet.refresh_token && JSON.stringify({ refreshToken: tokenSet.refresh_token }),
+			});
+		} catch (e) {
+			if (e instanceof RecordNotUniqueException) {
+				logger.warn(e, '[OAuth2] Failed to register user. User not unique');
+				throw new InvalidProviderException();
+			}
+			throw e;
+		}
 
 		return (await this.fetchUserId(identifier)) as string;
 	}
@@ -244,6 +254,14 @@ export function createOAuth2AuthRouter(providerName: string): Router {
 		respond
 	);
 
+	router.post(
+		'/callback',
+		express.urlencoded({ extended: false }),
+		(req, res) => {
+			res.redirect(303, `./callback?${new URLSearchParams(req.body)}`);
+		},
+		respond
+	);
 	router.get(
 		'/callback',
 		asyncHandler(async (req, res, next) => {
@@ -266,6 +284,7 @@ export function createOAuth2AuthRouter(providerName: string): Router {
 				accountability: {
 					ip: getIPFromReq(req),
 					userAgent: req.get('user-agent'),
+					origin: req.get('origin'),
 					role: null,
 				},
 				schema: req.schema,
@@ -275,11 +294,6 @@ export function createOAuth2AuthRouter(providerName: string): Router {
 
 			try {
 				res.clearCookie(`oauth2.${providerName}`);
-
-				if (!req.query.code || !req.query.state) {
-					logger.warn(`[OAuth2] Couldn't extract OAuth2 code or state from query: ${JSON.stringify(req.query)}`);
-				}
-
 				authResponse = await authenticationService.login(providerName, {
 					code: req.query.code,
 					codeVerifier: verifier,
@@ -309,14 +323,11 @@ export function createOAuth2AuthRouter(providerName: string): Router {
 
 			const { accessToken, refreshToken, expires } = authResponse;
 
+			if (env.ACCESS_TOKEN_COOKIE_NAME) {
+				res.cookie(env.ACCESS_TOKEN_COOKIE_NAME, accessToken, COOKIE_OPTIONS.accessToken);
+			}
 			if (redirect) {
-				res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
-					httpOnly: true,
-					domain: env.REFRESH_TOKEN_COOKIE_DOMAIN,
-					maxAge: ms(env.REFRESH_TOKEN_TTL as string),
-					secure: env.REFRESH_TOKEN_COOKIE_SECURE ?? false,
-					sameSite: (env.REFRESH_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
-				});
+				res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, COOKIE_OPTIONS.refreshToken);
 
 				return res.redirect(redirect);
 			}

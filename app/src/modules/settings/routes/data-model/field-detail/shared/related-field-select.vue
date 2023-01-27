@@ -40,7 +40,7 @@
 <script lang="ts">
 import { defineComponent, computed, PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useFieldsStore } from '@/stores';
+import { useFieldsStore } from '@/stores/fields';
 import { i18n } from '@/lang';
 
 export default defineComponent({
@@ -62,6 +62,10 @@ export default defineComponent({
 			default: () => [],
 		},
 		typeDenyList: {
+			type: Array as PropType<string[]>,
+			default: () => [],
+		},
+		typeAllowList: {
 			type: Array as PropType<string[]>,
 			default: () => [],
 		},
@@ -89,7 +93,8 @@ export default defineComponent({
 					!field.schema ||
 					!!field.schema?.is_primary_key ||
 					props.disabledFields.includes(field.field) ||
-					props.typeDenyList.includes(field.type),
+					props.typeDenyList.includes(field.type) ||
+					!props.typeAllowList.includes(field.type),
 			}));
 		});
 

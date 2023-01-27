@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import ms from 'ms';
 import env from '../env';
 import { InvalidPayloadException } from '../exceptions';
 import { respond } from '../middleware/respond';
@@ -12,9 +11,11 @@ import {
 	createOAuth2AuthRouter,
 	createOpenIDAuthRouter,
 	createLDAPAuthRouter,
+	createSAMLAuthRouter,
 } from '../auth/drivers';
 import { DEFAULT_AUTH_PROVIDER } from '../constants';
 import { getIPFromReq } from '../utils/get-ip-from-req';
+import { COOKIE_OPTIONS } from '../constants';
 
 const router = Router();
 
@@ -39,6 +40,10 @@ for (const authProvider of authProviders) {
 		case 'ldap':
 			authRouter = createLDAPAuthRouter(authProvider.name);
 			break;
+
+		case 'saml':
+			authRouter = createSAMLAuthRouter(authProvider.name);
+			break;
 	}
 
 	if (!authRouter) {
@@ -59,6 +64,7 @@ router.post(
 		const accountability = {
 			ip: getIPFromReq(req),
 			userAgent: req.get('user-agent'),
+			origin: req.get('origin'),
 			role: null,
 		};
 
@@ -85,14 +91,11 @@ router.post(
 			payload.data.refresh_token = refreshToken;
 		}
 
+		if (env.ACCESS_TOKEN_COOKIE_NAME) {
+			res.cookie(env.ACCESS_TOKEN_COOKIE_NAME, accessToken, COOKIE_OPTIONS.accessToken);
+		}
 		if (mode === 'cookie') {
-			res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
-				httpOnly: true,
-				domain: env.REFRESH_TOKEN_COOKIE_DOMAIN,
-				maxAge: ms(env.REFRESH_TOKEN_TTL as string),
-				secure: env.REFRESH_TOKEN_COOKIE_SECURE ?? false,
-				sameSite: (env.REFRESH_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
-			});
+			res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, COOKIE_OPTIONS.refreshToken);
 		}
 
 		res.locals.payload = payload;
@@ -107,6 +110,7 @@ router.post(
 		const accountability = {
 			ip: getIPFromReq(req),
 			userAgent: req.get('user-agent'),
+			origin: req.get('origin'),
 			role: null,
 		};
 
@@ -124,12 +128,10 @@ router.post(
 		await authenticationService.logout(currentRefreshToken);
 
 		if (req.cookies[env.REFRESH_TOKEN_COOKIE_NAME]) {
-			res.clearCookie(env.REFRESH_TOKEN_COOKIE_NAME, {
-				httpOnly: true,
-				domain: env.REFRESH_TOKEN_COOKIE_DOMAIN,
-				secure: env.REFRESH_TOKEN_COOKIE_SECURE ?? false,
-				sameSite: (env.REFRESH_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
-			});
+			res.clearCookie(env.REFRESH_TOKEN_COOKIE_NAME, COOKIE_OPTIONS.refreshToken);
+		}
+		if (req.cookies[env.ACCESS_TOKEN_COOKIE_NAME]) {
+			res.clearCookie(env.ACCESS_TOKEN_COOKIE_NAME, COOKIE_OPTIONS.accessToken);
 		}
 
 		return next();
@@ -147,6 +149,7 @@ router.post(
 		const accountability = {
 			ip: getIPFromReq(req),
 			userAgent: req.get('user-agent'),
+			origin: req.get('origin'),
 			role: null,
 		};
 
@@ -181,6 +184,7 @@ router.post(
 		const accountability = {
 			ip: getIPFromReq(req),
 			userAgent: req.get('user-agent'),
+			origin: req.get('origin'),
 			role: null,
 		};
 

@@ -13,7 +13,6 @@ import jwt from 'jsonwebtoken';
 import ms from 'ms';
 import { InvalidCredentialsException, ForbiddenException } from '../exceptions';
 import env from '../env';
-import { nanoid } from 'nanoid';
 import { AuthorizationService } from './authorization';
 import { UsersService } from './users';
 import { MailService } from './mail';
@@ -40,6 +39,8 @@ export class SharesService extends ItemsService {
 	}
 
 	async login(payload: Record<string, any>): Promise<LoginResult> {
+		const { nanoid } = await import('nanoid');
+
 		const record = await this.knex
 			.select<ShareData>({
 				share_id: 'id',
@@ -101,6 +102,7 @@ export class SharesService extends ItemsService {
 			expires: refreshTokenExpiration,
 			ip: this.accountability?.ip,
 			user_agent: this.accountability?.userAgent,
+			origin: this.accountability?.origin,
 			share: record.share_id,
 		});
 

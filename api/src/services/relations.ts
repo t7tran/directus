@@ -11,7 +11,10 @@ import getDatabase, { getSchemaInspector } from '../database';
 import { getDefaultIndexName } from '../utils/get-default-index-name';
 import { getCache, clearSystemCache } from '../cache';
 import Keyv from 'keyv';
-import { AbstractServiceOptions } from '../types';
+import { AbstractServiceOptions, ActionEventParams, MutationOptions } from '../types';
+import { getHelpers, Helpers } from '../database/helpers';
+import emitter from '../emitter';
+import { getSchema } from '../utils/get-schema';
 
 export class RelationsService {
 	knex: Knex;
@@ -21,6 +24,7 @@ export class RelationsService {
 	schema: SchemaOverview;
 	relationsItemService: ItemsService<RelationMeta>;
 	systemCache: Keyv<any>;
+	helpers: Helpers;
 
 	constructor(options: AbstractServiceOptions) {
 		this.knex = options.knex || getDatabase();
@@ -37,6 +41,7 @@ export class RelationsService {
 		});
 
 		this.systemCache = getCache().systemCache;
+		this.helpers = getHelpers(this.knex);
 	}
 
 	async readAll(collection?: string, opts?: QueryOptions): Promise<Relation[]> {
@@ -120,7 +125,7 @@ export class RelationsService {
 	/**
 	 * Create a new relationship / foreign key constraint
 	 */
-	async createOne(relation: Partial<Relation>): Promise<void> {
+	async createOne(relation: Partial<Relation>, opts?: MutationOptions): Promise<void> {
 		if (this.accountability && this.accountability.admin !== true) {
 			throw new ForbiddenException();
 		}
@@ -165,6 +170,9 @@ export class RelationsService {
 			);
 		}
 
+		const runPostColumnChange = await this.helpers.schema.preColumnChange();
+		const nestedActionEvents: ActionEventParams[] = [];
+
 		try {
 			const metaRow = {
 				...(relation.meta || {}),
@@ -199,10 +207,28 @@ export class RelationsService {
 					// happens in `filterForbidden` down below
 				});
 
-				await relationsItemService.createOne(metaRow);
+				await relationsItemService.createOne(metaRow, {
+					bypassEmitAction: (params) =>
+						opts?.bypassEmitAction ? opts.bypassEmitAction(params) : nestedActionEvents.push(params),
+				});
 			});
 		} finally {
-			await clearSystemCache();
+			if (runPostColumnChange) {
+				await this.helpers.schema.postColumnChange();
+			}
+
+			if (opts?.autoPurgeSystemCache !== false) {
+				await clearSystemCache();
+			}
+
+			if (opts?.emitEvents !== false && nestedActionEvents.length > 0) {
+				const updatedSchema = await getSchema();
+
+				for (const nestedActionEvent of nestedActionEvents) {
+					nestedActionEvent.context.schema = updatedSchema;
+					emitter.emitAction(nestedActionEvent.event, nestedActionEvent.meta, nestedActionEvent.context);
+				}
+			}
 		}
 	}
 
@@ -211,7 +237,12 @@ export class RelationsService {
 	 *
 	 * Note: You can update anything under meta, but only the `on_delete` trigger under schema
 	 */
-	async updateOne(collection: string, field: string, relation: Partial<Relation>): Promise<void> {
+	async updateOne(
+		collection: string,
+		field: string,
+		relation: Partial<Relation>,
+		opts?: MutationOptions
+	): Promise<void> {
 		if (this.accountability && this.accountability.admin !== true) {
 			throw new ForbiddenException();
 		}
@@ -232,6 +263,9 @@ export class RelationsService {
 			throw new InvalidPayloadException(`Field "${field}" in collection "${collection}" doesn't have a relationship.`);
 		}
 
+		const runPostColumnChange = await this.helpers.schema.preColumnChange();
+		const nestedActionEvents: ActionEventParams[] = [];
+
 		try {
 			await this.knex.transaction(async (trx) => {
 				if (existingRelation.related_collection) {
@@ -242,6 +276,9 @@ export class RelationsService {
 						if (existingRelation?.schema) {
 							constraintName = existingRelation.schema.constraint_name || constraintName;
 							table.dropForeign(field, constraintName);
+
+							constraintName = this.helpers.schema.constraintName(constraintName);
+							existingRelation.schema.constraint_name = constraintName;
 						}
 
 						this.alterType(table, relation);
@@ -270,26 +307,50 @@ export class RelationsService {
 
 				if (relation.meta) {
 					if (existingRelation?.meta) {
-						await relationsItemService.updateOne(existingRelation.meta.id, relation.meta);
-					} else {
-						await relationsItemService.createOne({
-							...(relation.meta || {}),
-							many_collection: relation.collection,
-							many_field: relation.field,
-							one_collection: existingRelation.related_collection || null,
+						await relationsItemService.updateOne(existingRelation.meta.id, relation.meta, {
+							bypassEmitAction: (params) =>
+								opts?.bypassEmitAction ? opts.bypassEmitAction(params) : nestedActionEvents.push(params),
 						});
+					} else {
+						await relationsItemService.createOne(
+							{
+								...(relation.meta || {}),
+								many_collection: relation.collection,
+								many_field: relation.field,
+								one_collection: existingRelation.related_collection || null,
+							},
+							{
+								bypassEmitAction: (params) =>
+									opts?.bypassEmitAction ? opts.bypassEmitAction(params) : nestedActionEvents.push(params),
+							}
+						);
 					}
 				}
 			});
 		} finally {
-			await clearSystemCache();
+			if (runPostColumnChange) {
+				await this.helpers.schema.postColumnChange();
+			}
+
+			if (opts?.autoPurgeSystemCache !== false) {
+				await clearSystemCache();
+			}
+
+			if (opts?.emitEvents !== false && nestedActionEvents.length > 0) {
+				const updatedSchema = await getSchema();
+
+				for (const nestedActionEvent of nestedActionEvents) {
+					nestedActionEvent.context.schema = updatedSchema;
+					emitter.emitAction(nestedActionEvent.event, nestedActionEvent.meta, nestedActionEvent.context);
+				}
+			}
 		}
 	}
 
 	/**
 	 * Delete an existing relationship
 	 */
-	async deleteOne(collection: string, field: string): Promise<void> {
+	async deleteOne(collection: string, field: string, opts?: MutationOptions): Promise<void> {
 		if (this.accountability && this.accountability.admin !== true) {
 			throw new ForbiddenException();
 		}
@@ -310,6 +371,9 @@ export class RelationsService {
 			throw new InvalidPayloadException(`Field "${field}" in collection "${collection}" doesn't have a relationship.`);
 		}
 
+		const runPostColumnChange = await this.helpers.schema.preColumnChange();
+		const nestedActionEvents: ActionEventParams[] = [];
+
 		try {
 			await this.knex.transaction(async (trx) => {
 				const existingConstraints = await this.schemaInspector.foreignKeys();
@@ -327,9 +391,43 @@ export class RelationsService {
 				if (existingRelation.meta) {
 					await trx('directus_relations').delete().where({ many_collection: collection, many_field: field });
 				}
+
+				const actionEvent = {
+					event: 'relations.delete',
+					meta: {
+						payload: [field],
+						collection: collection,
+					},
+					context: {
+						database: this.knex,
+						schema: this.schema,
+						accountability: this.accountability,
+					},
+				};
+
+				if (opts?.bypassEmitAction) {
+					opts.bypassEmitAction(actionEvent);
+				} else {
+					nestedActionEvents.push(actionEvent);
+				}
 			});
 		} finally {
-			await clearSystemCache();
+			if (runPostColumnChange) {
+				await this.helpers.schema.postColumnChange();
+			}
+
+			if (opts?.autoPurgeSystemCache !== false) {
+				await clearSystemCache();
+			}
+
+			if (opts?.emitEvents !== false && nestedActionEvents.length > 0) {
+				const updatedSchema = await getSchema();
+
+				for (const nestedActionEvent of nestedActionEvents) {
+					nestedActionEvent.context.schema = updatedSchema;
+					emitter.emitAction(nestedActionEvent.event, nestedActionEvent.meta, nestedActionEvent.context);
+				}
+			}
 		}
 	}
 

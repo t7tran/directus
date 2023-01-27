@@ -135,8 +135,8 @@
 </template>
 
 <script lang="ts" setup>
-import useClipboard from '@/composables/use-clipboard';
-import { getOperations } from '@/operations';
+import { useClipboard } from '@/composables/use-clipboard';
+import { useExtensions } from '@/extensions';
 import { translate } from '@/utils/translate-object-values';
 import { Vector2 } from '@/utils/vector2';
 import { FlowRaw } from '@directus/shared/types';
@@ -174,7 +174,7 @@ const props = withDefaults(
 
 const { panelsToBeDeleted } = toRefs(props);
 
-const { operations } = getOperations();
+const { operations } = useExtensions();
 const { triggers } = getTriggers();
 
 const emit = defineEmits([

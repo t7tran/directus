@@ -51,6 +51,7 @@ and: Und
 or: Oder
 init: Initialisierung
 dataset_too_large_currently_showing_n_items: Datensatz ist zu groß. Derzeit werden die ersten {n} Elemente angezeigt.
+modifier: Geändert von
 custom: Eigene
 hook: Hook
 fill_width: Breite füllen
@@ -177,7 +178,7 @@ item_permissions: Item Berechtigungen
 field_permissions: Feldberechtigungen
 field_validation: Feldüberprüfung
 field_presets: Feld-Vorlagen
-permissions_for_role: 'Items die {role} Rolle kann {action}.'
+permissions_for_role: 'Elemente, die {role} Rolle {action} kann.'
 fields_for_role: 'Felder die von der {role} Rolle {action} werden können.'
 validation_for_role: 'Feld {action} Regeln, welche die {role} Rolle befolgen muss.'
 presets_for_role: 'Standardwert für die {role} Rolle.'
@@ -186,6 +187,9 @@ revision_post_create: So sah dieses Element bei der Erstellung aus.
 revision_post_update: So sieht dieses Element nach der Überarbeitung aus.
 changes_made: Dies sind die spezifischen Änderungen, die in dieser Revision vorgenommen wurden.
 no_relational_data: Beachten Sie, dass relationale Daten hier nicht enthalten sind.
+junction_field_location: Lage der Kreuzungsfelder
+top: Oben
+bottom: Unten
 hide_field: Felder ausblenden
 hide_field_on_detail: In Detailansicht ausblenden
 show_field_on_detail: In Detailansicht einblenden
@@ -271,6 +275,7 @@ fields_group: Feldergruppe
 no_collections_found: Keine Sammlungen gefunden.
 new_data_alert: 'Folgendes wird innerhalb Ihres Datenmodells erstellt:'
 search_collection: Sammlung suchen...
+search_field: Suchfeld...
 new_field: 'Neues Feld'
 new_collection: 'Neue Sammlung'
 add_m2o_to_collection: 'M2O zu "{collection}" hinzufügen'
@@ -294,6 +299,8 @@ next: Weiter
 field_name: Feldname
 translations: Übersetzungen
 no_translations: Keine Übersetzung
+left_to_right: Von links nach rechts
+right_to_left: Von rechts nach links
 note: Notiz
 enter_a_value: Gib einen Wert ein...
 enter_a_placeholder: Platzhalter eingeben...
@@ -308,6 +315,8 @@ primary_key: Primärschlüssel
 foreign_key: Fremdschlüssel
 finish_setup: Einrichtung abschließen
 dismiss: Verwerfen
+toggle_raw_editor: Raw-Editor umschalten
+raw_editor_placeholder: "{'{'}{'{'}$trigger.payload.example{'}'}{'}'}"
 raw_value: Rohwert
 copy_raw_value: Unverarbeiteten Wert kopieren
 copy_raw_value_success: Kopiert
@@ -320,6 +329,7 @@ edit_raw_value: Rohwert bearbeiten
 enter_raw_value: Rohwert eingeben...
 clear_value: Wert löschen
 clear_changes: Änderungen löschen
+clear_items: Element entfernen
 reset_to_default: Auf Standardwert zurücksetzen
 undo_changes: Änderungen rückgängig machen
 notifications: Benachrichtigungen
@@ -476,6 +486,7 @@ creating_items: Elemente erstellen
 enable_create_button: Knopf zum Erstellen aktivieren
 selecting_items: Elemente auswählen
 enable_select_button: Knopf zum Auswählen aktivieren
+allow_duplicates: Duplikate erlauben
 comments: Kommentare
 no_comments: Noch keine Kommentare
 click_to_expand: Zum Erweitern klicken
@@ -528,6 +539,7 @@ activity_item: Aktivitäten-Element
 action: Aktion
 ip_address: IP Adresse
 user_agent: Benutzer-Agent
+origin: Ursprung
 webhooks: Webhooks
 decimals: Dezimalstellen
 value_decimals: Wert Dezimalstellen
@@ -561,6 +573,8 @@ select_an_item: Element auswählen...
 edit: Bearbeiten
 enabled: Aktiviert
 disable_tfa: 2FA deaktivieren
+admin_disable_tfa_text: Bist du dir sicher, dass du 2FA für diesen Nutzer deaktivieren möchtest?
+tfa_setup: 2FA einrichten
 tfa_scan_code: Scannen Sie den Code in Ihrer Authentifikator-App, um die Einrichtung von 2FA abzuschließen
 enter_otp_to_disable_tfa: OTP zum deaktivieren der 2FA eingeben
 create_account: Konto erstellen
@@ -576,6 +590,9 @@ errors:
   INVALID_PAYLOAD: Ungültige Nutzdaten
   INVALID_PROVIDER: Benutzer gehört zu einem anderen Authentifizierungsanbieter
   INVALID_QUERY: Ungültige anfrage
+  INVALID_CONFIG: Ungültige Konfiguration
+  INVALID_TOKEN: Token ungültig
+  INVALID_IP: IP-Adresse nicht erlaubt
   INVALID_USER: Nutzer konnte nicht authentifiziert werden
   ITEM_LIMIT_REACHED: Limit für Elemente erreicht
   ITEM_NOT_FOUND: Element nicht gefunden
@@ -592,6 +609,13 @@ errors:
   INVALID_FOREIGN_KEY: Ungültiger Fremdschlüssel
   UNKNOWN: Unerwarteter Fehler
   GRAPHQL_VALIDATION_EXCEPTION: GraphQL Validierungsfehler
+  SERVICE_UNAVAILABLE: Dienst nicht verfügbar
+  UNSUPPORTED_MEDIA_TYPE: Nicht unterstützter Medientyp
+  UNEXPECTED_RESPONSE: Unerwartete Antwort
+  TOKEN_EXPIRED: Token abgelaufen
+  RANGE_NOT_SATISFIABLE: Ungültiger Bereich
+  METHOD_NOT_ALLOWED: Methode ist nicht erlaubt
+  REQUESTS_EXCEEDED: Anfragelimit erreicht
 security: Sicherheit
 value_hashed: Wert sicher gehashed
 bookmark_name: Name des Lesezeichens...
@@ -613,6 +637,7 @@ password_reset_sent: Wenn Sie ein Konto haben, haben wir Ihnen einen sicheren Li
 password_reset_successful: Das Passwort wurde erfolgreich zurückgesetzt
 back: Zurück
 filter: Filter
+edit_image: Bild bearbeiten
 editing_image: Bild bearbeiten
 square: Quadratisch
 free: Frei
@@ -730,6 +755,8 @@ add_file: Datei hinzufügen
 replace_file: Datei ersetzen
 no_results: Keine Ergebnisse
 no_results_copy: Suchfilter anpassen oder löschen um Ergebnisse zu sehen.
+no_visible_fields: Leeres Formular
+no_visible_fields_copy: Dieses Formular hat keine sichtbaren Felder.
 clear_filters: Filter löschen
 saves_automatically: Wird automatisch gespeichert
 role: Rolle
@@ -759,8 +786,10 @@ label: Label
 flows: Flows
 flow: Flow
 select_a_flow: Flow auswählen
+run_flow_on_current_collection: Flow für aktuelle Sammlung ausführen
 run_flow_on_current: Flow für aktuelles Element ausführen
-run_flow_on_selected: Keine Items ausgewählt | Flow für 1 ausgewähltes Element ausführen | Flow für {n} ausgewählte Items ausführen
+run_flow_on_current_edited_confirm: Dieses Element kann durch diesen Flow aktualisiert werden, bist du dir sicher, dass du es ausführen möchtest?
+run_flow_on_selected: Wählen Sie zuerst eins oder mehrere Elemente aus | Flow für 1 ausgewähltes Element ausführen | Flow für {n} ausgewählte Items ausführen
 run_flow_success: Flow "{flow}" wurde erfolgreich ausgeführt
 trigger: Trigger
 trigger_options: Auslöse-Optionen
@@ -789,6 +818,13 @@ start_flow: Flow starten
 stop_flow: Flow stoppen
 create_operation: Operation erstellen
 edit_operation: Operation bearbeiten
+code: Code
+operation_options: Operation Optionen
+operation_name: Name der Operation...
+operation_key: Bezeichner für Referenz...
+operation_key_unique_error: Operationsschlüssel müssen in einem Flow eindeutig sein
+operation_handle_resolve: 'Lösen: Zum Hinzufügen klicken oder für Reroute ziehen'
+operation_handle_reject: 'Ablehnen: Zum Hinzufügen klicken oder für Reroute ziehen'
 insights: Einblicke
 dashboard: Dashboard
 panel: Panel
@@ -797,6 +833,7 @@ panel_header: Panel-Titel
 panel_name_placeholder: Dieses Panel benennen...
 panel_note_placeholder: Optionale Details zu diesem Panel...
 panel_delete_confirm: Möchten Sie dieses Panel wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+list_panel_allow_edit: Schnellbearbeitung zulassen
 dashboard_delete_confirm: Möchten Sie dieses Dashboard wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
 edit_dashboard: Dashboard bearbeiten
 delete_dashboard: Dashboard löschen
@@ -811,7 +848,8 @@ dashboard_name: Name des Dashboards
 no_data: Keine Daten
 no_data_in_flow: Es wurden keine Daten verarbeitet
 accountability: Verantwortlichkeit
-payload: Auslastung
+payload: Nutzdaten
+details: Details
 full_screen: Vollbild
 full_text_search: Volltextsuche
 edit_panels: Panel bearbeiten
@@ -825,6 +863,7 @@ media: Medien
 quality: Qualität
 width: Breite
 height: Höhe
+transformation_preset_key: Transformation Preset Key
 source: Quelle
 url_placeholder: URL eingeben...
 display_text: Text anzeigen
@@ -959,6 +998,8 @@ page_help_settings_presets_item: >-
   **Vorlagen-Details** — Ein Formular zur Verwaltung von Lesezeichen und Vorlagen für Sammlungen.
 page_help_settings_webhooks_collection: '**Durchsuche Webhooks** — Auflistung aller Webhooks in diesem Projekt.'
 page_help_settings_webhooks_item: '**Webhook-Detail** — Ein Formular zum Erstellen und Verwalten von Webhooks.'
+page_help_settings_flows_collection: '**Flows anzeigen** — Zeige alle Flows des Projektes.'
+page_help_settings_flows_item: '**Flow Details** — Verwaltung einer oder mehrerer Operationen.'
 page_help_settings_translation_strings_collection: '**Übersetzungsstrings durchsuchen** — Listet alle Übersetzungselemente im Projekt auf.'
 page_help_users_collection: '**Benutzerverzeichnis** — Auflistung aller Benutzer in diesem Projekt.'
 page_help_users_item: >-
@@ -987,9 +1028,11 @@ directus_collection:
   directus_dashboards: Dashboards innerhalb des Moduls "Einblicke"
   directus_fields: Weitere Felder und Metadaten
   directus_files: Metadaten für alle verwalteten Dateien
+  directus_flows: Automation Flows
   directus_folders: Stellt virtuelle Verzeichnisse für Dateien bereit
   directus_migrations: Welche Version der Datenbank verwenden Sie
   directus_notifications: Benachrichtigungen an Benutzer gesendet
+  directus_operations: In Flows ausgeführte Operationen
   directus_panels: Individuelle Panels in Einblicke-Dashboards
   directus_permissions: Zugriffsrechte für jede Rolle
   directus_presets: Vorlagen für Sammlung und Lesezeichen
@@ -1010,6 +1053,7 @@ fields:
     user: Aktion von
     comment: Kommentar
     user_agent: Benutzer-Agent
+    origin: Ursprung
     ip: IP Adresse
     revisions: Revisionen
   directus_collections:
@@ -1074,7 +1118,7 @@ fields:
     status_draft: Entwurf
     status_invited: Eingeladen
     status_active: Aktiv
-    status_suspended: Angehalten
+    status_suspended: Gesperrt
     status_archived: Archiviert
     role: Rolle
     token: Token
@@ -1121,6 +1165,8 @@ fields:
     transformations_all: Alle Transformationen erlauben
     transformations_none: Transformationen deaktivieren
     transformations_presets: Transformationen auf untenstehende Voreinstellungen begrenzen
+    image_editor: Bildeditor
+    custom_aspect_ratios: Benutzerdefiniertes Seitenverhältnis
   directus_shares:
     name: Name
     role: Rolle
@@ -1245,7 +1291,7 @@ field_options:
     status_dropdown_draft: Entwurf
     status_dropdown_invited: Eingeladen
     status_dropdown_active: Aktiv
-    status_dropdown_suspended: Angehalten
+    status_dropdown_suspended: Gesperrt
     status_dropdown_archived: Archiviert
     token: Einen sicheren Zugangs-Token eingeben...
   directus_webhooks:
@@ -1360,6 +1406,7 @@ reset: Zurücksetzen
 reset_password: Passwort zurücksetzen
 revisions: Revisionen
 no_revisions: Noch keine Revision
+no_logs: Keine Logs vorhanden
 revert: Zurücksetzen
 save: Speichern
 schema: Schema
@@ -1379,12 +1426,23 @@ export_started_copy: Der Export hat begonnen. Du wirst benachrichtigt, wenn die 
 sort_asc: Aufsteigend sortieren
 sort_desc: Absteigend sortieren
 template: Vorlage
+require_value_to_be_set: Wert muss bei Erstellung gesetzt werden
 translation: Übersetzung
 translation_placeholder: Geben Sie eine Übersetzung ein...
 value: Wert
 view_project: Projekt anzeigen
 report_error: Fehler melden
 start: Start
+table: Tabelle
+list: Liste
+search_filter: Suche & Filter
+enable_search_filter: Suche & Filterung aktivieren
+item_link: Elementlink
+show_link_to_item: Zeige Link zum Element
+navigate_to_item: Zum Element navigieren
+undo_removed_item: Entferntes Item rückgängig
+remove_item: Item entfernen
+delete_item: Item löschen
 interfaces:
   filter:
     name: Filter
@@ -1401,6 +1459,7 @@ interfaces:
     no_rules: Keine konfigurierten Regeln
     change_value: Klicken um Wert zu ändern
     placeholder: Regeln hierher ziehen
+    add_key_placeholder: Tag hinzufügen und Enter drücken...
   fields:
     name: Felder
   group-accordion:
@@ -1463,6 +1522,9 @@ interfaces:
     set_to_now: Auf Jetzt setzen
     use_24: 24-Stunden-Format verwenden
     placeholder: Datum wählen...
+  system-fields:
+    select_a_collection: Sammlung auswählen
+    no_fields: Keine Felder
   system-display-template:
     display-template: Anzeigevorlage
     description: Statischen Text und dynamische Feldwerte mischen
@@ -1486,6 +1548,7 @@ interfaces:
     allow_none_label: Keine Auswahl zulassen
     choices_name_placeholder: Namen eingeben...
     choices_value_placeholder: Gib einen Wert ein...
+    preview_threshold: Vorschau-Grenzwert
   select-multiple-dropdown:
     select-multiple-dropdown: Dropdown (Mehrfachauswahl)
     description: Mehrere Werte aus einer Dropdown-Liste auswählen
@@ -1519,6 +1582,7 @@ interfaces:
   list-m2m:
     many-to-many: n:n
     description: Mehrere verwandte Elemente auswählen
+    columns_configure_notice: Sie können Spalten nach dem Anlegen der Felder konfigurieren.
     display_template_configure_notice: Sie können die Anzeige-Vorlage nach dem Erstellen dieses Feldes konfigurieren.
   select-dropdown-m2o:
     many-to-one: n:1
@@ -1636,6 +1700,7 @@ interfaces:
     user_language: Aktuelle Benutzersprache verwenden
     default_language: Standardsprache
     language_field: Sprachindikatorfeld
+    language_direction_field: Sprachverzeichnis Feld
   list-o2m-tree-view:
     description: Baumansicht für verschachtelte rekursive 1:n-Elemente
     recursive_only: Die Baumansicht funktioniert nur für rekursive Beziehungen.
@@ -1677,9 +1742,15 @@ interfaces:
     start_closed: Geschlossen starten
   system-token:
     system-token: Token
+    description: Statische Zugriffstoken verwalten
+    placeholder: Klicken Sie auf "Token generieren", um ein neuen statischen Zugriffstoken zu erstellen
+    value_securely_saved: Wert sicher gespeichert
     generate: Token generieren
     regenerate: Token neu generieren
+    generate_success_copy: Stellen Sie sicher, dass Sie den obige Token sichern und kopieren. Aus Sicherheitsgründen können Sie den Token nach dem Speichern und Navigieren von dieser Seite nicht mehr anzeigen.
     remove_token: Token löschen
+  system-raw-editor:
+    system-raw-editor: Quelltext-Editor
 displays:
   translations:
     translations: Übersetzungen
@@ -1718,6 +1789,11 @@ displays:
     relative: Relativ
     relative_label: 'Zeige relative Zeit, z. B.: vor 5 Minuten'
     suffix: Suffix
+    suffix_note: Verwendet Wörter wie 'in' und 'vor'
+    strict: Strikt
+    strict_note: Entfernt Wörter wie 'fast', 'über', 'weniger als'
+    round: Runden
+    round_note: Wählen Sie eine Rundungsfunktion
   file:
     file: Datei
     description: Dateien anzeigen
@@ -1829,33 +1905,13 @@ layouts:
     default_template: Verwenden des Sammlungs-Standards...
     no_compatible_fields: Keine kompatiblen Felder
   kanban:
-    name: Kanban,
-    group_field: Gruppieren nach,
-    group_field_placeholder: Feld zum Gruppieren...,
-    group_title: Gruppentitel,
-    group_title_placeholder: Feld für Gruppentitel...,
-    title: Karten-Titel,
-    title_placeholder: Optionales Titelfeld...,
-    text: Karten-Text,
-    text_placeholder: Optionales Textfeld...,
-    date: Karten-Datum,
-    date_placeholder: Optionales Datumsfeld...,
-    tags: Karten-Tags,
-    tags_placeholder: Optionales Tag-Feld...,
-    user: Karten-Benutzer,
-    user_placeholder: Optionales Benutzerfeld...,
-    image: Karten-Bild,
-    image_placeholder: Optionales Bildfeld...,
-    image_fit: Karten-Bildfüllmodus,
-    crop: Beschneiden,
-    advanced: Erweitert,
-    edit_group: Gruppe bearbeiten,
-    delete_group: Gruppe löschen,
-    add_group: Gruppe hinzufügen,
-    add_group_placeholder: Neuen Gruppentitel eingeben...,
-    show_ungrouped: Nicht gruppierte Elemente zeigen,
-    show: Anzeigen,
-    no_group: Keine Gruppe,
+    name: Kanban
+    group_field: Gruppieren nach
+    group_title: Gruppentitel
+    crop: Zuschneiden
+    advanced: Erweitert
+    show: Anzeigen
+    no_group: Keine Gruppe
     not_all_loaded: Konnte nur die ersten 1000 Elemente laden.
 panels:
   metric:
@@ -1893,6 +1949,7 @@ panels:
     group_by: Gruppieren nach
     group_and_function: Sie müssen sowohl eine Gruppe als auch eine Funktion hinzufügen oder weglassen.
     y_axis_NaN: Die y-Achse muss eine Zahl sein.
+    y_axis_conditional_one: Der Wert für die Bedingung
     y_axis_conditional_two: muss eine Zahl sein.
   linechart:
     name: Liniendiagramm
@@ -1904,14 +1961,14 @@ panels:
     y_axis: Y-Achse
     datasets: Datensätze
     show_legend: Legende anzeigen
-    include_dataset: Mindestens ein Datensatz muss angegeben werden.
     group_and_function: Sie müssen sowohl eine Gruppe als auch eine Funktion hinzufügen oder weglassen.
-    smooth: 'Weich'
-    straight: 'Gerade'
+    smooth: Weich
+    straight: Gerade
   meter:
-    arc: Bogen
+    name: Meter
     stroke_width: Strichbreite
     select_max_value: Es muss einen Maximalwert ausgewählt werden.
+    max_greater_than_zero: Der Wert muss größer als 0 sein.
     select_field: Sie müssen ein Feld auswählen.
     select_collection: Sie müssen eine Sammlung auswählen.
     function: Funktion
@@ -1920,34 +1977,76 @@ panels:
     broad: Breit
   piechart:
     name: Kuchen oder Donut Diagramm
-    function: 'Funktion'
+    function: Funktion
     donut: Donut
-    legend: Legende anzeigen
+    show_labels: Beschriftungen anzeigen
+    show_legend: Legende anzeigen
     right: Rechts
     bottom: Unten
     monochrome: Monochrom
+    monochrome_color: Monochrome Farbe
+  variable:
+    name: Globale Variable
+    description: Globalen Wert für die Verwendung in Filtern anderer Panels festlegen
+    variable_key: Variabler Schlüssel
+  relational-variable:
+    name: Globale relationale Variable
+    description: Einen globalen relativen Wert für die Verwendung in Filtern anderer Panels festlegen
+    variable_key: Variabler Schlüssel
+    multiple: Mehrere
+    multiple-label: Mehrere Elemente auswählen
 triggers:
+  common:
+    response_body: Response-Body
+    response_body_all: Alle Daten
+    response_body_last: Daten der letzten Operation
+  event:
+    name: Event-Hook
+    description: Auslösen bei Plattform- oder Datenereignissen
+    action: 'Aktion (nicht blockierend)'
+    filter: 'Filter (blockierend)'
   webhook:
     name: Webhook
+    description: Auslösend bei eingehender HTTP-Anfrage
     method: Methode
     async: Asynchron
+  operation:
+    name: Ein anderer Flow
+    description: Ausgelöst von einem anderen Flow, zur Verkettung
+    preview: Ausgelöst durch eine Operation in einem anderen Flow
   schedule:
     name: Zeitplan (CRON)
+    description: Auslösen an regulären Zeitpunkten
     cron: Intervall
   manual:
     name: Manuell
+    description: Auslösen beim manuellen Ausführungen innerhalb ausgewählter Sammlung(en)
     collection_and_item: Sammlungen & Element Seiten
+    collection_only: Nur Sammlungsseite
+    item_only: Nur Elementseite
+    collection_page: Sammlungsseite
+    require_selection: Benötigt Auswahl
+a_flow_uuid: Auszulösenden Flow auswählen...
 any_string_or_json: Ein String oder JSON...
+item_payload_placeholder: Dies ist der JSON-Wert um die Feldwerte des Elements zu aktualisieren...
+operation_variables_note: Du kannst auf Flow-Daten mit Variablen wie **{'{'}{'{'}$last{'}'}{'}'}**, **{'{'}{'{'}$trigger{'}'}{'}'}** und **{'{'}{'{'}$accountability{'}'}{'}'}**, oder vorherige Operationen mit **{'{'}{'{'}operation_key{'}'}{'}'}**.' referenzieren
 operations:
   condition:
     name: Kondition
+    description: Leiten eines Flows basierend auf If / Else Logik
+  exec:
+    name: Skript ausführen
+    description: Führe beliebigen Code aus, um die Nutzlast zu ändern
+    modules: 'Die folgenden **Node Module** können genutzt werden:'
   item-create:
     name: Daten erstellen
     description: Elemente in der Datenbank erstellen
-    payload: Auslastung
+    payload: Nutzdaten
+    emit_events: Event auslösen
   item-delete:
     name: Daten löschen
     description: Elemente aus der Datenbank löschen
+    emit_events: Event auslösen
     key: IDs
     query: Abfrage
   item-read:
@@ -1955,13 +2054,16 @@ operations:
     description: Elemente aus der Datenbank lesen
     key: IDs
     query: Abfrage
+    emit_events: Event auslösen
   item-update:
     name: Daten aktualisieren
     description: Elemente in der Datenbank aktualisieren
+    emit_events: Event auslösen
     key: IDs
-    payload: Auslastung
+    payload: Nutzdaten
     query: Abfrage
   log:
+    name: Konsolenausgabe
     description: Etwas in die Konsole ausgeben
     message: Nachricht
     message_placeholder: Geben Sie eine Nachricht ein, die in der Konsole angezeigt werden soll...
@@ -1973,8 +2075,9 @@ operations:
     body: Inhalt
   notification:
     name: Benachrichtigung senden
-    description: In-app Benachrichtigung an Benutzer senden
+    description: App-Interne Benachrichtigung an einen oder mehrere Benutzer senden
     recipient: Benutzer
+    recipient_placeholder: Benutzer UUID eingeben und Enter drücken...
     message: Nachricht
   request:
     name: Webhook / Anfrage URL
@@ -1983,11 +2086,20 @@ operations:
     url_placeholder: https://example.com/example
     method: Methode
     data: Daten
+    headers: Kopfzeilen
     header: Header
+    header_placeholder: Autorisierung...
     value_placeholder: Bearer eyJhbGciOi...
   sleep:
+    name: Warten
+    description: Gegebene Zeit in Millisekunden warten
     milliseconds: Millisekunden
+  transform:
+    name: Payload bearbeiten
+    description: JSON Payload des Flows bearbeiten
   trigger:
+    name: Flow auslösen
+    description: Daten an anderen Flow übergeben
     flows: Flows
     flow: Flow
     data: Daten

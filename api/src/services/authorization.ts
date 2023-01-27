@@ -26,6 +26,7 @@ import { stripFunction } from '../utils/strip-function';
 import { ItemsService } from './items';
 import { PayloadService } from './payload';
 import { getRelationInfo } from '../utils/get-relation-info';
+import { GENERATE_SPECIAL } from '../constants';
 
 export class AuthorizationService {
 	knex: Knex;
@@ -211,7 +212,7 @@ export class AuthorizationService {
 
 			if (ast.type === 'root') {
 				// Validate all required permissions once at the root level
-				checkFieldPermissions(ast.name, schema, action, requiredFieldPermissions);
+				checkFieldPermissions(ast.name, schema, action, requiredFieldPermissions, ast.query.alias);
 			}
 
 			return requiredFieldPermissions;
@@ -252,7 +253,7 @@ export class AuthorizationService {
 								(result[relation.collection] || (result[relation.collection] = new Set())).add(relation.field);
 							}
 						}
-						// m2a filter in the form of `item:collection`
+						// a2o filter in the form of `item:collection`
 						else if (filterKey.includes(':')) {
 							const [field, collectionScope] = filterKey.split(':');
 
@@ -358,7 +359,8 @@ export class AuthorizationService {
 				rootCollection: string,
 				schema: SchemaOverview,
 				action: PermissionsAction,
-				requiredPermissions: Record<string, Set<string>>
+				requiredPermissions: Record<string, Set<string>>,
+				aliasMap?: Record<string, string> | null
 			) {
 				if (accountability?.admin === true) return;
 
@@ -394,7 +396,16 @@ export class AuthorizationService {
 
 					for (const field of requiredPermissions[collection]) {
 						if (field.startsWith('$FOLLOW')) continue;
-						if (!allowedFields.includes(field)) throw new ForbiddenException();
+						const fieldName = stripFunction(field);
+						let originalFieldName = fieldName;
+
+						if (collection === rootCollection && aliasMap?.[fieldName]) {
+							originalFieldName = aliasMap[fieldName];
+						}
+
+						if (!allowedFields.includes(originalFieldName)) {
+							throw new ForbiddenException();
+						}
 					}
 				}
 			}
@@ -513,9 +524,7 @@ export class AuthorizationService {
 		for (const field of Object.values(this.schema.collections[collection].fields)) {
 			const specials = field?.special ?? [];
 
-			const hasGenerateSpecial = ['uuid', 'date-created', 'role-created', 'user-created'].some((name) =>
-				specials.includes(name)
-			);
+			const hasGenerateSpecial = GENERATE_SPECIAL.some((name) => specials.includes(name));
 
 			const nullable = field.nullable || hasGenerateSpecial || field.generated;
 

@@ -7,7 +7,7 @@ type Message = {
 	fail?: string;
 };
 
-export default function useClipboard() {
+export function useClipboard() {
 	const { t } = useI18n();
 
 	const isCopySupported = computed(() => {
@@ -20,9 +20,10 @@ export default function useClipboard() {
 
 	return { isCopySupported, isPasteSupported, copyToClipboard, pasteFromClipboard };
 
-	async function copyToClipboard(value: string, message?: Message): Promise<boolean> {
+	async function copyToClipboard(value: any, message?: Message): Promise<boolean> {
 		try {
-			await navigator?.clipboard?.writeText(value);
+			const valueString = typeof value === 'string' ? value : JSON.stringify(value);
+			await navigator?.clipboard?.writeText(valueString);
 			notify({
 				title: message?.success ?? t('copy_raw_value_success'),
 			});

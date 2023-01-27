@@ -5,18 +5,50 @@ import { getConfigFromEnv } from './utils/get-config-from-env';
 import { URL } from 'url';
 import env from './env';
 import { toArray } from '@directus/shared/utils';
+import { merge } from 'lodash';
 
+const redactPaths = env.ACCESS_TOKEN_COOKIE_NAME
+	? [
+			'req.headers.authorization',
+			`req.cookies.${env.ACCESS_TOKEN_COOKIE_NAME}`,
+			`req.cookies.${env.REFRESH_TOKEN_COOKIE_NAME}`,
+	  ]
+	: ['req.headers.authorization', `req.cookies.${env.REFRESH_TOKEN_COOKIE_NAME}`];
 const pinoOptions: LoggerOptions = {
 	level: env.LOG_LEVEL || 'info',
 	redact: {
-		paths: ['req.headers.authorization', `req.cookies.${env.REFRESH_TOKEN_COOKIE_NAME}`],
+		paths: redactPaths,
+		censor: '--redact--',
+	},
+};
+const httpLoggerOptions: LoggerOptions = {
+	level: env.LOG_LEVEL || 'info',
+	redact: {
+		paths: redactPaths,
 		censor: '--redact--',
 	},
 };
 
 if (env.LOG_STYLE !== 'raw') {
-	pinoOptions.prettyPrint = true;
-	pinoOptions.prettifier = require('pino-colada');
+	pinoOptions.transport = {
+		target: 'pino-pretty',
+		options: {
+			ignore: 'hostname,pid',
+			sync: true,
+		},
+	};
+	httpLoggerOptions.transport = {
+		target: 'pino-http-print',
+		options: {
+			all: true,
+			translateTime: 'SYS:HH:MM:ss',
+			relativeUrl: true,
+			prettyOptions: {
+				ignore: 'hostname,pid',
+				sync: true,
+			},
+		},
+	};
 }
 
 const loggerEnvConfig = getConfigFromEnv('LOGGER_', 'LOGGER_HTTP');
@@ -38,29 +70,33 @@ if (loggerEnvConfig.levels) {
 			};
 		},
 	};
+	httpLoggerOptions.formatters = {
+		level(label: string, number: any) {
+			return {
+				severity: customLogLevels[label] || 'info',
+				level: number,
+			};
+		},
+	};
 
 	delete loggerEnvConfig.levels;
 }
 
-const logger = pino(Object.assign(pinoOptions, loggerEnvConfig));
+const logger = pino(merge(pinoOptions, loggerEnvConfig));
 
 const httpLoggerEnvConfig = getConfigFromEnv('LOGGER_HTTP', ['LOGGER_HTTP_LOGGER']);
 
-export const expressLogger = pinoHTTP(
-	{
-		logger,
-		...httpLoggerEnvConfig,
-	},
-	{
-		serializers: {
-			req(request: Request) {
-				const output = stdSerializers.req(request);
-				output.url = redactQuery(output.url);
-				return output;
-			},
+export const expressLogger = pinoHTTP({
+	logger: pino(merge(httpLoggerOptions, loggerEnvConfig)),
+	...httpLoggerEnvConfig,
+	serializers: {
+		req(request: Request) {
+			const output = stdSerializers.req(request);
+			output.url = redactQuery(output.url);
+			return output;
 		},
-	}
-) as RequestHandler;
+	},
+}) as RequestHandler;
 
 export default logger;
 

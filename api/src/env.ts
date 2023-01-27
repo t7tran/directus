@@ -8,8 +8,7 @@ import fs from 'fs';
 import { clone, toNumber, toString } from 'lodash';
 import path from 'path';
 import { requireYAML } from './utils/require-yaml';
-import { toArray } from '@directus/shared/utils';
-import { parseJSON } from '@directus/shared/utils';
+import { toArray, parseJSON } from '@directus/shared/utils';
 
 // keeping this here for now to prevent a circular import to constants.ts
 const allowedEnvironmentVars = [
@@ -33,11 +32,16 @@ const allowedEnvironmentVars = [
 	'KEY',
 	'SECRET',
 	'ACCESS_TOKEN_TTL',
+	'ACCESS_TOKEN_COOKIE_DOMAIN',
+	'ACCESS_TOKEN_COOKIE_SECURE',
+	'ACCESS_TOKEN_COOKIE_SAME_SITE',
+	'ACCESS_TOKEN_COOKIE_NAME',
 	'REFRESH_TOKEN_TTL',
 	'REFRESH_TOKEN_COOKIE_DOMAIN',
 	'REFRESH_TOKEN_COOKIE_SECURE',
 	'REFRESH_TOKEN_COOKIE_SAME_SITE',
 	'REFRESH_TOKEN_COOKIE_NAME',
+	'LOGIN_STALL_TIME',
 	'PASSWORD_RESET_URL_ALLOW_LIST',
 	'USER_INVITE_URL_ALLOW_LIST',
 	'IP_TRUST_PROXY',
@@ -75,6 +79,7 @@ const allowedEnvironmentVars = [
 	'CACHE_REDIS_PASSWORD',
 	'CACHE_MEMCACHE',
 	'CACHE_VALUE_MAX_SIZE',
+	'CACHE_HEALTHCHECK_THRESHOLD',
 	// storage
 	'STORAGE_LOCATIONS',
 	'STORAGE_.+_DRIVER',
@@ -86,11 +91,13 @@ const allowedEnvironmentVars = [
 	'STORAGE_.+_ENDPOINT',
 	'STORAGE_.+_ACL',
 	'STORAGE_.+_CONTAINER_NAME',
+	'STORAGE_.+_SERVER_SIDE_ENCRYPTION',
 	'STORAGE_.+_ACCOUNT_NAME',
 	'STORAGE_.+_ACCOUNT_KEY',
 	'STORAGE_.+_ENDPOINT',
 	'STORAGE_.+_KEY_FILENAME',
 	'STORAGE_.+_BUCKET',
+	'STORAGE_.+_HEALTHCHECK_THRESHOLD',
 	// metadata
 	'FILE_METADATA_ALLOW_LIST',
 	// assets
@@ -99,6 +106,7 @@ const allowedEnvironmentVars = [
 	'ASSETS_TRANSFORM_IMAGE_MAX_DIMENSION',
 	'ASSETS_TRANSFORM_MAX_OPERATIONS',
 	'ASSETS_CONTENT_SECURITY_POLICY',
+	'ASSETS_INVALID_IMAGE_SENSITIVITY_LEVEL',
 	// auth
 	'AUTH_PROVIDERS',
 	'AUTH_DISABLE_DEFAULT',
@@ -116,6 +124,7 @@ const allowedEnvironmentVars = [
 	'AUTH_.+_ALLOW_PUBLIC_REGISTRATION',
 	'AUTH_.+_DEFAULT_ROLE_ID',
 	'AUTH_.+_ICON',
+	'AUTH_.+_LABEL',
 	'AUTH_.+_PARAMS',
 	'AUTH_.+_ISSUER_URL',
 	'AUTH_.+_AUTH_REQUIRE_VERIFIED_EMAIL',
@@ -131,15 +140,25 @@ const allowedEnvironmentVars = [
 	'AUTH_.+_GROUP_DN',
 	'AUTH_.+_GROUP_ATTRIBUTE',
 	'AUTH_.+_GROUP_SCOPE',
+	'AUTH_.+_IDP.+',
+	'AUTH_.+_SP.+',
 	// extensions
 	'EXTENSIONS_PATH',
 	'EXTENSIONS_AUTO_RELOAD',
+	// messenger
+	'MESSENGER_STORE',
+	'MESSENGER_NAMESPACE',
+	'MESSENGER_REDIS',
+	'MESSENGER_REDIS_HOST',
+	'MESSENGER_REDIS_PORT',
+	'MESSENGER_REDIS_PASSWORD',
 	// emails
 	'EMAIL_FROM',
 	'EMAIL_TRANSPORT',
 	'EMAIL_VERIFY_SETUP',
 	'EMAIL_SENDMAIL_NEW_LINE',
 	'EMAIL_SENDMAIL_PATH',
+	'EMAIL_SMTP_NAME',
 	'EMAIL_SMTP_HOST',
 	'EMAIL_SMTP_PORT',
 	'EMAIL_SMTP_USER',
@@ -150,6 +169,7 @@ const allowedEnvironmentVars = [
 	'EMAIL_MAILGUN_API_KEY',
 	'EMAIL_MAILGUN_DOMAIN',
 	'EMAIL_MAILGUN_HOST',
+	'EMAIL_SENDGRID_API_KEY',
 	'EMAIL_SES_CREDENTIALS__ACCESS_KEY_ID',
 	'EMAIL_SES_CREDENTIALS__SECRET_ACCESS_KEY',
 	'EMAIL_SES_REGION',
@@ -161,6 +181,9 @@ const allowedEnvironmentVars = [
 	// limits & optimization
 	'RELATIONAL_BATCH_SIZE',
 	'EXPORT_BATCH_SIZE',
+	// flows
+	'FLOWS_EXEC_ALLOWED_MODULES',
+	'FLOWS_ENV_ALLOW_LIST',
 ].map((name) => new RegExp(`^${name}$`));
 
 const acceptedEnvTypes = ['string', 'number', 'regex', 'array', 'json'];
@@ -171,7 +194,7 @@ const defaults: Record<string, any> = {
 	HOST: '0.0.0.0',
 	PORT: 8055,
 	PUBLIC_URL: '/',
-	MAX_PAYLOAD_SIZE: '100kb',
+	MAX_PAYLOAD_SIZE: '1mb',
 	MAX_RELATIONAL_DEPTH: 10,
 
 	DB_EXCLUDE_TABLES: 'spatial_ref_sys,sysdiagrams',
@@ -186,10 +209,15 @@ const defaults: Record<string, any> = {
 	RATE_LIMITER_STORE: 'memory',
 
 	ACCESS_TOKEN_TTL: '15m',
+	ACCESS_TOKEN_COOKIE_SECURE: false,
+	ACCESS_TOKEN_COOKIE_SAME_SITE: 'lax',
+	// ACCESS_TOKEN_COOKIE_NAME: 'directus_access_token', // only activate if present
 	REFRESH_TOKEN_TTL: '7d',
 	REFRESH_TOKEN_COOKIE_SECURE: false,
 	REFRESH_TOKEN_COOKIE_SAME_SITE: 'lax',
 	REFRESH_TOKEN_COOKIE_NAME: 'directus_refresh_token',
+
+	LOGIN_STALL_TIME: 500,
 
 	ROOT_REDIRECT: './admin',
 
@@ -229,6 +257,7 @@ const defaults: Record<string, any> = {
 	ASSETS_TRANSFORM_MAX_CONCURRENT: 1,
 	ASSETS_TRANSFORM_IMAGE_MAX_DIMENSION: 6000,
 	ASSETS_TRANSFORM_MAX_OPERATIONS: 5,
+	ASSETS_INVALID_IMAGE_SENSITIVITY_LEVEL: 'warning',
 
 	IP_TRUST_PROXY: true,
 	IP_CUSTOM_HEADER: false,
@@ -244,6 +273,9 @@ const defaults: Record<string, any> = {
 	FILE_METADATA_ALLOW_LIST: 'ifd0.Make,ifd0.Model,exif.FNumber,exif.ExposureTime,exif.FocalLength,exif.ISO',
 
 	GRAPHQL_INTROSPECTION: true,
+
+	FLOWS_EXEC_ALLOWED_MODULES: false,
+	FLOWS_ENV_ALLOW_LIST: false,
 };
 
 // Allows us to force certain environment variable into a type, instead of relying
@@ -269,7 +301,7 @@ const typeMap: Record<string, string> = {
 let env: Record<string, any> = {
 	...defaults,
 	...process.env,
-	...getEnv(),
+	...processConfiguration(),
 };
 
 process.env = env;
@@ -279,6 +311,11 @@ env = processValues(env);
 export default env;
 
 /**
+ * Small wrapper function that makes it easier to write unit tests against changing environments
+ */
+export const getEnv = () => env;
+
+/**
  * When changes have been made during runtime, like in the CLI, we can refresh the env object with
  * the newly created variables
  */
@@ -286,7 +323,7 @@ export function refreshEnv(): void {
 	env = {
 		...defaults,
 		...process.env,
-		...getEnv(),
+		...processConfiguration(),
 	};
 
 	process.env = env;
@@ -294,7 +331,7 @@ export function refreshEnv(): void {
 	env = processValues(env);
 }
 
-function getEnv() {
+function processConfiguration() {
 	const configPath = path.resolve(process.env.CONFIG_PATH || defaults.CONFIG_PATH);
 
 	if (fs.existsSync(configPath) === false) return {};
@@ -383,7 +420,7 @@ function processValues(env: Record<string, any>) {
 		if (key.length > 5 && key.endsWith('_FILE')) {
 			newKey = key.slice(0, -5);
 			if (allowedEnvironmentVars.some((pattern) => pattern.test(newKey as string))) {
-				if (newKey in env) {
+				if (newKey in env && !(newKey in defaults && env[newKey] === defaults[newKey])) {
 					throw new Error(
 						`Duplicate environment variable encountered: you can't use "${newKey}" and "${key}" simultaneously.`
 					);

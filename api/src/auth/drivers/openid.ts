@@ -1,18 +1,19 @@
 import { BaseException } from '@directus/shared/exceptions';
 import { parseJSON } from '@directus/shared/utils';
-import { Router } from 'express';
+import express, { Router } from 'express';
 import flatten from 'flat';
 import jwt from 'jsonwebtoken';
-import ms from 'ms';
 import { Client, errors, generators, Issuer } from 'openid-client';
 import { getAuthProvider } from '../../auth';
 import env from '../../env';
 import {
 	InvalidConfigException,
 	InvalidCredentialsException,
+	InvalidProviderException,
 	InvalidTokenException,
 	ServiceUnavailableException,
 } from '../../exceptions';
+import { RecordNotUniqueException } from '../../exceptions/database/record-not-unique';
 import logger from '../../logger';
 import { respond } from '../../middleware/respond';
 import { AuthenticationService, UsersService } from '../../services';
@@ -22,6 +23,7 @@ import { getConfigFromEnv } from '../../utils/get-config-from-env';
 import { getIPFromReq } from '../../utils/get-ip-from-req';
 import { Url } from '../../utils/url';
 import { LocalAuthDriver } from './local';
+import { COOKIE_OPTIONS } from '../../constants';
 
 export class OpenIDAuthDriver extends LocalAuthDriver {
 	client: Promise<Client>;
@@ -97,6 +99,7 @@ export class OpenIDAuthDriver extends LocalAuthDriver {
 				code_challenge_method: 'S256',
 				// Some providers require state even with PKCE
 				state: codeChallenge,
+				nonce: codeChallenge,
 			});
 		} catch (e) {
 			throw handleError(e);
@@ -114,8 +117,8 @@ export class OpenIDAuthDriver extends LocalAuthDriver {
 	}
 
 	async getUserID(payload: Record<string, any>): Promise<string> {
-		if (!payload.code || !payload.codeVerifier) {
-			logger.trace('[OpenID] No code or codeVerifier in payload');
+		if (!payload.code || !payload.codeVerifier || !payload.state) {
+			logger.warn('[OpenID] No code, codeVerifier or state in payload');
 			throw new InvalidCredentialsException();
 		}
 
@@ -124,10 +127,11 @@ export class OpenIDAuthDriver extends LocalAuthDriver {
 
 		try {
 			const client = await this.client;
+			const codeChallenge = generators.codeChallenge(payload.codeVerifier);
 			tokenSet = await client.callback(
 				this.redirectUrl,
 				{ code: payload.code, state: payload.state },
-				{ code_verifier: payload.codeVerifier, state: generators.codeChallenge(payload.codeVerifier) }
+				{ code_verifier: payload.codeVerifier, state: codeChallenge, nonce: codeChallenge }
 			);
 			userInfo = tokenSet.claims();
 
@@ -171,19 +175,27 @@ export class OpenIDAuthDriver extends LocalAuthDriver {
 
 		// Is public registration allowed?
 		if (!allowPublicRegistration || !isEmailVerified) {
-			logger.trace(`[OpenID] User doesn't exist, and public registration not allowed for provider "${provider}"`);
+			logger.warn(`[OpenID] User doesn't exist, and public registration not allowed for provider "${provider}"`);
 			throw new InvalidCredentialsException();
 		}
 
-		await this.usersService.createOne({
-			provider,
-			first_name: userInfo.given_name,
-			last_name: userInfo.family_name,
-			email: email,
-			external_identifier: identifier,
-			role: this.config.defaultRoleId,
-			auth_data: tokenSet.refresh_token && JSON.stringify({ refreshToken: tokenSet.refresh_token }),
-		});
+		try {
+			await this.usersService.createOne({
+				provider,
+				first_name: userInfo.given_name,
+				last_name: userInfo.family_name,
+				email: email,
+				external_identifier: identifier,
+				role: this.config.defaultRoleId,
+				auth_data: tokenSet.refresh_token && JSON.stringify({ refreshToken: tokenSet.refresh_token }),
+			});
+		} catch (e) {
+			if (e instanceof RecordNotUniqueException) {
+				logger.warn(e, '[OpenID] Failed to register user. User not unique');
+				throw new InvalidProviderException();
+			}
+			throw e;
+		}
 
 		return (await this.fetchUserId(identifier)) as string;
 	}
@@ -268,6 +280,15 @@ export function createOpenIDAuthRouter(providerName: string): Router {
 		respond
 	);
 
+	router.post(
+		'/callback',
+		express.urlencoded({ extended: false }),
+		(req, res) => {
+			res.redirect(303, `./callback?${new URLSearchParams(req.body)}`);
+		},
+		respond
+	);
+
 	router.get(
 		'/callback',
 		asyncHandler(async (req, res, next) => {
@@ -290,6 +311,7 @@ export function createOpenIDAuthRouter(providerName: string): Router {
 				accountability: {
 					ip: getIPFromReq(req),
 					userAgent: req.get('user-agent'),
+					origin: req.get('origin'),
 					role: null,
 				},
 				schema: req.schema,
@@ -299,11 +321,6 @@ export function createOpenIDAuthRouter(providerName: string): Router {
 
 			try {
 				res.clearCookie(`openid.${providerName}`);
-
-				if (!req.query.code || !req.query.state) {
-					logger.warn(`[OpenID] Couldn't extract OpenID code or state from query: ${JSON.stringify(req.query)}`);
-				}
-
 				authResponse = await authenticationService.login(providerName, {
 					code: req.query.code,
 					codeVerifier: verifier,
@@ -335,14 +352,11 @@ export function createOpenIDAuthRouter(providerName: string): Router {
 
 			const { accessToken, refreshToken, expires } = authResponse;
 
+			if (env.ACCESS_TOKEN_COOKIE_NAME) {
+				res.cookie(env.ACCESS_TOKEN_COOKIE_NAME, accessToken, COOKIE_OPTIONS.accessToken);
+			}
 			if (redirect) {
-				res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
-					httpOnly: true,
-					domain: env.REFRESH_TOKEN_COOKIE_DOMAIN,
-					maxAge: ms(env.REFRESH_TOKEN_TTL as string),
-					secure: env.REFRESH_TOKEN_COOKIE_SECURE ?? false,
-					sameSite: (env.REFRESH_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
-				});
+				res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, COOKIE_OPTIONS.refreshToken);
 
 				return res.redirect(redirect);
 			}

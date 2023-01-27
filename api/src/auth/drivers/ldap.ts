@@ -10,7 +10,6 @@ import ldap, {
 	InvalidCredentialsError,
 	InsufficientAccessRightsError,
 } from 'ldapjs';
-import ms from 'ms';
 import { getIPFromReq } from '../../utils/get-ip-from-req';
 import Joi from 'joi';
 import { AuthDriver } from '../auth';
@@ -18,15 +17,18 @@ import { AuthDriverOptions, User } from '../../types';
 import {
 	InvalidCredentialsException,
 	InvalidPayloadException,
+	InvalidProviderException,
 	ServiceUnavailableException,
 	InvalidConfigException,
 	UnexpectedResponseException,
 } from '../../exceptions';
+import { RecordNotUniqueException } from '../../exceptions/database/record-not-unique';
 import { AuthenticationService, UsersService } from '../../services';
 import asyncHandler from '../../utils/async-handler';
 import env from '../../env';
 import { respond } from '../../middleware/respond';
 import logger from '../../logger';
+import { COOKIE_OPTIONS } from '../../constants';
 
 interface UserInfo {
 	dn: string;
@@ -274,14 +276,22 @@ export class LDAPAuthDriver extends AuthDriver {
 			throw new InvalidCredentialsException();
 		}
 
-		await this.usersService.createOne({
-			provider: this.config.provider,
-			first_name: userInfo.firstName,
-			last_name: userInfo.lastName,
-			email: userInfo.email,
-			external_identifier: userInfo.dn,
-			role: userRole?.id ?? defaultRoleId,
-		});
+		try {
+			await this.usersService.createOne({
+				provider: this.config.provider,
+				first_name: userInfo.firstName,
+				last_name: userInfo.lastName,
+				email: userInfo.email,
+				external_identifier: userInfo.dn,
+				role: userRole?.id ?? defaultRoleId,
+			});
+		} catch (e) {
+			if (e instanceof RecordNotUniqueException) {
+				logger.warn(e, '[LDAP] Failed to register user. User not unique');
+				throw new InvalidProviderException();
+			}
+			throw e;
+		}
 
 		return (await this.fetchUserId(userInfo.dn)) as string;
 	}
@@ -363,6 +373,7 @@ export function createLDAPAuthRouter(provider: string): Router {
 			const accountability = {
 				ip: getIPFromReq(req),
 				userAgent: req.get('user-agent'),
+				origin: req.get('origin'),
 				role: null,
 			};
 
@@ -393,14 +404,11 @@ export function createLDAPAuthRouter(provider: string): Router {
 				payload.data.refresh_token = refreshToken;
 			}
 
+			if (env.ACCESS_TOKEN_COOKIE_NAME) {
+				res.cookie(env.ACCESS_TOKEN_COOKIE_NAME, accessToken, COOKIE_OPTIONS.accessToken);
+			}
 			if (mode === 'cookie') {
-				res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
-					httpOnly: true,
-					domain: env.REFRESH_TOKEN_COOKIE_DOMAIN,
-					maxAge: ms(env.REFRESH_TOKEN_TTL as string),
-					secure: env.REFRESH_TOKEN_COOKIE_SECURE ?? false,
-					sameSite: (env.REFRESH_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
-				});
+				res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, COOKIE_OPTIONS.refreshToken);
 			}
 
 			res.locals.payload = payload;

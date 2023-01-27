@@ -24,6 +24,7 @@
 					item-text="name"
 					item-disabled="meta.singleton"
 					multiple
+					:is-menu-same-width="false"
 					:multiple-preview-threshold="0"
 				/>
 			</div>
@@ -64,6 +65,7 @@
 			<v-divider large :inline-title="false">{{ t('sort_field') }}</v-divider>
 			<related-field-select
 				v-model="sortField"
+				:type-allow-list="['integer', 'bigInteger', 'float', 'decimal']"
 				:disabled-fields="unsortableJunctionFields"
 				:collection="junctionCollection"
 				:placeholder="t('add_sort_field')"
@@ -158,7 +160,9 @@ import { useFieldDetailStore, syncFieldDetailStoreProperty } from '../store';
 import { storeToRefs } from 'pinia';
 import RelatedCollectionSelect from '../shared/related-collection-select.vue';
 import RelatedFieldSelect from '../shared/related-field-select.vue';
-import { useFieldsStore, useCollectionsStore, useRelationsStore } from '@/stores';
+import { useFieldsStore } from '@/stores/fields';
+import { useCollectionsStore } from '@/stores/collections';
+import { useRelationsStore } from '@/stores/relations';
 import { orderBy } from 'lodash';
 
 export default defineComponent({
@@ -189,7 +193,7 @@ export default defineComponent({
 		const availableCollections = computed(() => {
 			return orderBy(
 				[
-					...collectionsStore.allCollections,
+					...collectionsStore.databaseCollections,
 					{
 						divider: true,
 					},

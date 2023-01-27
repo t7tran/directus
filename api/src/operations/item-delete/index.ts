@@ -17,13 +17,12 @@ export default defineOperationApi<Options>({
 
 	handler: async ({ collection, key, query, emitEvents, permissions }, { accountability, database, getSchema }) => {
 		const schema = await getSchema({ database });
-
 		let customAccountability: Accountability | null;
 
 		if (!permissions || permissions === '$trigger') {
 			customAccountability = accountability;
 		} else if (permissions === '$full') {
-			customAccountability = null;
+			customAccountability = await getAccountabilityForRole('system', { database, schema, accountability });
 		} else if (permissions === '$public') {
 			customAccountability = await getAccountabilityForRole(null, { database, schema, accountability });
 		} else {
@@ -42,14 +41,14 @@ export default defineOperationApi<Options>({
 		let result: PrimaryKey | PrimaryKey[] | null;
 
 		if (!key || (Array.isArray(key) && key.length === 0)) {
-			result = await itemsService.deleteByQuery(sanitizedQueryObject);
+			result = await itemsService.deleteByQuery(sanitizedQueryObject, { emitEvents: !!emitEvents });
 		} else {
 			const keys = toArray(key);
 
 			if (keys.length === 1) {
-				result = await itemsService.deleteOne(keys[0], { emitEvents });
+				result = await itemsService.deleteOne(keys[0], { emitEvents: !!emitEvents });
 			} else {
-				result = await itemsService.deleteMany(keys, { emitEvents });
+				result = await itemsService.deleteMany(keys, { emitEvents: !!emitEvents });
 			}
 		}
 

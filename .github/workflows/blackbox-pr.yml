@@ -7,8 +7,14 @@ on:
     paths:
       - api/**
       - tests-blackbox/**
+      - packages/shared/**
       - package.json
       - pnpm-lock.yaml
+      - .github/workflows/blackbox-pr.yml
+
+concurrency:
+  group: blackbox-pr-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   NODE_OPTIONS: --max_old_space_size=6144
@@ -24,6 +30,14 @@ jobs:
       - name: Prepare
         uses: ./.github/actions/prepare
 
-      - name: Run Tests
-        shell: bash
+      - name: Reinstall production dependencies only
+        run: pnpm install --prod
+
+      - name: Reinstall dev dependencies in workspace root
+        run: pnpm install --workspace-root --dev
+
+      - name: Start services
+        run: docker compose -f tests-blackbox/docker-compose.yml up auth-saml -d --quiet-pull --wait
+
+      - name: Run tests
         run: TEST_DB=sqlite3 pnpm run -w test:blackbox

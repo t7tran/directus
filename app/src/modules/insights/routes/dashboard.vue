@@ -192,13 +192,15 @@
 
 <script lang="ts" setup>
 import { AppTile } from '@/components/v-workspace-tile.vue';
-import useEditsGuard from '@/composables/use-edits-guard';
-import useShortcut from '@/composables/use-shortcut';
-import { getPanels } from '@/panels';
+import { useEditsGuard } from '@/composables/use-edits-guard';
+import { useShortcut } from '@/composables/use-shortcut';
+import { useExtensions } from '@/extensions';
 import { router } from '@/router';
-import { useAppStore, useInsightsStore, usePermissionsStore } from '@/stores';
+import { useAppStore } from '@/stores/app';
+import { useInsightsStore } from '@/stores/insights';
+import { usePermissionsStore } from '@/stores/permissions';
 import { pointOnLine } from '@/utils/point-on-line';
-import RefreshSidebarDetail from '@/views/private/components/refresh-sidebar-detail/refresh-sidebar-detail.vue';
+import RefreshSidebarDetail from '@/views/private/components/refresh-sidebar-detail.vue';
 import { applyOptionsData } from '@directus/shared/utils';
 import { assign, isEmpty } from 'lodash';
 import { computed, ref, toRefs, unref, watch } from 'vue';
@@ -215,7 +217,7 @@ const props = withDefaults(defineProps<Props>(), { panelKey: null });
 
 const { t } = useI18n();
 
-const { panels: panelsInfo } = getPanels();
+const { panels: panelsInfo } = useExtensions();
 
 const insightsStore = useInsightsStore();
 const appStore = useAppStore();

@@ -1,6 +1,8 @@
 import api from '@/api';
 import { defineModule } from '@directus/shared/utils';
-import { useCollectionsStore, useFieldsStore, useFlowsStore } from '@/stores';
+import { useCollectionsStore } from '@/stores/collections';
+import { useFieldsStore } from '@/stores/fields';
+import { useFlowsStore } from '@/stores/flows';
 import RouterPass from '@/utils/router-passthrough';
 import Collections from './routes/data-model/collections/collections.vue';
 import FieldDetail from './routes/data-model/field-detail/field-detail.vue';
@@ -29,6 +31,7 @@ export default defineModule({
 	color: 'var(--primary)',
 	routes: [
 		{
+			name: 'settings-data-model-redirect',
 			path: '',
 			redirect: '/settings/data-model',
 		},

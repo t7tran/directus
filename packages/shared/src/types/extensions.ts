@@ -1,19 +1,14 @@
 import { Knex } from 'knex';
 import { Logger } from 'pino';
-import { Ref } from 'vue';
 import {
-	API_EXTENSION_PACKAGE_TYPES,
 	API_EXTENSION_TYPES,
-	API_WITHOUT_HYBRID_EXTENSION_TYPES,
-	APP_EXTENSION_PACKAGE_TYPES,
 	APP_EXTENSION_TYPES,
-	APP_WITHOUT_HYBRID_EXTENSION_TYPES,
-	EXTENSION_PACKAGE_TYPES,
+	BUNDLE_EXTENSION_TYPES,
 	EXTENSION_PKG_KEY,
 	EXTENSION_TYPES,
 	HYBRID_EXTENSION_TYPES,
 	LOCAL_TYPES,
-	PACK_EXTENSION_TYPE,
+	NESTED_EXTENSION_TYPES,
 } from '../constants';
 import { Accountability } from './accountability';
 import { InterfaceConfig } from './interfaces';
@@ -26,115 +21,116 @@ import { Field } from './fields';
 import { Relation } from './relations';
 import { Collection } from './collection';
 import { SchemaOverview } from './schema';
+import { OperationAppConfig } from './operations';
+import { z } from 'zod';
 
-export type AppWithoutHybridExtensionType = typeof APP_WITHOUT_HYBRID_EXTENSION_TYPES[number];
-export type ApiWithoutHybridExtensionType = typeof API_WITHOUT_HYBRID_EXTENSION_TYPES[number];
-export type HybridExtensionType = typeof HYBRID_EXTENSION_TYPES[number];
 export type AppExtensionType = typeof APP_EXTENSION_TYPES[number];
 export type ApiExtensionType = typeof API_EXTENSION_TYPES[number];
+export type HybridExtensionType = typeof HYBRID_EXTENSION_TYPES[number];
+export type BundleExtensionType = typeof BUNDLE_EXTENSION_TYPES[number];
 export type ExtensionType = typeof EXTENSION_TYPES[number];
+export type NestedExtensionType = typeof NESTED_EXTENSION_TYPES[number];
 
-export type PackExtensionType = typeof PACK_EXTENSION_TYPE;
-export type AppExtensionPackageType = typeof APP_EXTENSION_PACKAGE_TYPES[number];
-export type ApiExtensionPackageType = typeof API_EXTENSION_PACKAGE_TYPES[number];
-export type ExtensionPackageType = typeof EXTENSION_PACKAGE_TYPES[number];
+const SplitEntrypoint = z.object({
+	app: z.string(),
+	api: z.string(),
+});
 
-type ExtensionCommon = {
+export type SplitEntrypoint = z.infer<typeof SplitEntrypoint>;
+
+type ExtensionBase = {
 	path: string;
 	name: string;
-};
-
-type AppExtensionCommon = {
-	type: AppWithoutHybridExtensionType;
-	entrypoint: string;
-};
-
-type ApiExtensionCommon = {
-	type: ApiWithoutHybridExtensionType;
-	entrypoint: string;
-};
-
-type HybridExtensionCommon = {
-	type: HybridExtensionType;
-	entrypoint: { app: string; api: string };
-};
-
-type PackExtensionCommon = {
-	type: PackExtensionType;
-	children: string[];
-};
-
-type ExtensionLocalCommon = ExtensionCommon & {
-	local: true;
-};
-
-type ExtensionPackageCommon = ExtensionCommon & {
-	version: string;
-	host: string;
-	local: false;
-};
-
-export type ExtensionLocal = ExtensionLocalCommon & (AppExtensionCommon | ApiExtensionCommon | HybridExtensionCommon);
-export type ExtensionPackage = ExtensionPackageCommon &
-	(AppExtensionCommon | ApiExtensionCommon | HybridExtensionCommon | PackExtensionCommon);
-
-export type AppExtension = AppExtensionCommon & (ExtensionLocalCommon | ExtensionPackageCommon);
-export type ApiExtension = ApiExtensionCommon & (ExtensionLocalCommon | ExtensionPackageCommon);
-export type HybridExtension = HybridExtensionCommon & (ExtensionLocalCommon | ExtensionPackageCommon);
-export type Extension = ExtensionLocal | ExtensionPackage;
-
-export type ExtensionManifestRaw = {
-	name?: string;
 	version?: string;
-	dependencies?: Record<string, string>;
-
-	[EXTENSION_PKG_KEY]?: {
-		type?: string;
-		path?: string | { app: string; api: string };
-		source?: string | { app: string; api: string };
-		host?: string;
-		hidden?: boolean;
-	};
+	host?: string;
+	local: boolean;
 };
 
-type ExtensionManifestCommon = {
-	host: string;
-	hidden?: boolean;
+export type AppExtension = ExtensionBase & {
+	type: AppExtensionType;
+	entrypoint: string;
 };
 
-type ExtensionManifestWithoutHybrid = {
-	type: AppWithoutHybridExtensionType | ApiWithoutHybridExtensionType;
-	path: string;
-	source: string;
+export type ApiExtension = ExtensionBase & {
+	type: ApiExtensionType;
+	entrypoint: string;
 };
 
-type ExtensionManifestHybrid = {
+export type HybridExtension = ExtensionBase & {
 	type: HybridExtensionType;
-	path: { app: string; api: string };
-	source: { app: string; api: string };
+	entrypoint: SplitEntrypoint;
 };
 
-type ExtensionManifestPack = {
-	type: PackExtensionType;
+export type BundleExtension = ExtensionBase & {
+	type: 'bundle';
+	entrypoint: SplitEntrypoint;
+	entries: { type: NestedExtensionType; name: string }[];
 };
 
-export type ExtensionOptions = ExtensionManifestCommon &
-	(ExtensionManifestWithoutHybrid | ExtensionManifestHybrid | ExtensionManifestPack);
+export type Extension = AppExtension | ApiExtension | HybridExtension | BundleExtension;
 
-export type ExtensionManifest = {
-	name: string;
-	version: string;
-	dependencies?: Record<string, string>;
+export const ExtensionOptionsBundleEntry = z.union([
+	z.object({
+		type: z.union([z.enum(APP_EXTENSION_TYPES), z.enum(API_EXTENSION_TYPES)]),
+		name: z.string(),
+		source: z.string(),
+	}),
+	z.object({
+		type: z.enum(HYBRID_EXTENSION_TYPES),
+		name: z.string(),
+		source: SplitEntrypoint,
+	}),
+]);
 
-	[EXTENSION_PKG_KEY]: ExtensionOptions;
-};
+const ExtensionOptionsBase = z.object({
+	host: z.string(),
+	hidden: z.boolean().optional(),
+});
+
+const ExtensionOptionsAppOrApi = z.object({
+	type: z.union([z.enum(APP_EXTENSION_TYPES), z.enum(API_EXTENSION_TYPES)]),
+	path: z.string(),
+	source: z.string(),
+});
+
+const ExtensionOptionsHybrid = z.object({
+	type: z.enum(HYBRID_EXTENSION_TYPES),
+	path: SplitEntrypoint,
+	source: SplitEntrypoint,
+});
+
+const ExtensionOptionsBundle = z.object({
+	type: z.literal('bundle'),
+	path: SplitEntrypoint,
+	entries: z.array(ExtensionOptionsBundleEntry),
+});
+
+const ExtensionOptions = ExtensionOptionsBase.and(
+	z.union([ExtensionOptionsAppOrApi, ExtensionOptionsHybrid, ExtensionOptionsBundle])
+);
+
+export type ExtensionOptions = z.infer<typeof ExtensionOptions>;
+export type ExtensionOptionsBundleEntry = z.infer<typeof ExtensionOptionsBundleEntry>;
+
+export const ExtensionOptionsBundleEntries = z.array(ExtensionOptionsBundleEntry);
+export type ExtensionOptionsBundleEntries = z.infer<typeof ExtensionOptionsBundleEntries>;
+
+export const ExtensionManifest = z.object({
+	name: z.string(),
+	version: z.string(),
+	dependencies: z.record(z.string()).optional(),
+	[EXTENSION_PKG_KEY]: ExtensionOptions,
+});
+
+export type ExtensionManifest = z.infer<typeof ExtensionManifest>;
 
 export type AppExtensionConfigs = {
-	interfaces: Ref<InterfaceConfig[]>;
-	displays: Ref<DisplayConfig[]>;
-	layouts: Ref<LayoutConfig[]>;
-	modules: Ref<ModuleConfig[]>;
-	panels: Ref<PanelConfig[]>;
+	interfaces: InterfaceConfig[];
+	displays: DisplayConfig[];
+	layouts: LayoutConfig[];
+	modules: ModuleConfig[];
+	panels: PanelConfig[];
+	operations: OperationAppConfig[];
 };
 
 export type ApiExtensionContext = {
@@ -172,3 +168,9 @@ export type ExtensionOptionsContext = {
 	autoGenerateJunctionRelation: boolean;
 	saving: boolean;
 };
+
+export type ExtensionInfo =
+	| Omit<AppExtension, 'entrypoint' | 'path'>
+	| Omit<ApiExtension, 'entrypoint' | 'path'>
+	| Omit<HybridExtension, 'entrypoint' | 'path'>
+	| Omit<BundleExtension, 'entrypoint' | 'path'>;

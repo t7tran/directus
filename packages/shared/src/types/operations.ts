@@ -5,7 +5,7 @@ import { Field } from './fields';
 import { DeepPartial } from './misc';
 import { FlowRaw } from './flows';
 
-type OperationContext = ApiExtensionContext & {
+export type OperationContext = ApiExtensionContext & {
 	data: Record<string, unknown>;
 	accountability: Accountability | null;
 };
@@ -20,6 +20,7 @@ export interface OperationAppConfig {
 	name: string;
 	icon: string;
 	description?: string;
+
 	overview:
 		| ((
 				options: Record<string, any>,
