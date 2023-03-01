@@ -8,7 +8,7 @@ import { ForbiddenException, InvalidPayloadException } from '../exceptions';
 import { respond } from '../middleware/respond';
 import useCollection from '../middleware/use-collection';
 import { validateBatch } from '../middleware/validate-batch';
-import { FilesService, MetaService } from '../services';
+import { FilesService, FoldersService, MetaService } from '../services';
 import { File, PrimaryKey } from '../types';
 import asyncHandler from '../utils/async-handler';
 
@@ -72,6 +72,38 @@ export const multipartHandler: RequestHandler = (req, res, next) => {
 
 		if (!payload.title) {
 			payload.title = formatTitle(path.parse(filename).name);
+		}
+
+		payload.folder = payload.folder || req.query.folder;
+		if (payload.folder && !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(payload.folder)) {
+			const foldersService = new FoldersService({ accountability: req.accountability, schema: req.schema });
+			const path: string = payload.folder;
+			const parts = path.split('/').filter((f) => !!f);
+			if (parts.length === 0) {
+				return busboy.emit('error', new InvalidPayloadException(`Invalid folder ${path}`));
+			}
+
+			let folderId: string | undefined;
+			let parentFilter: any = { parent: { _null: true } };
+			for (const part of parts) {
+				folderId = (
+					await foldersService.readByQuery({
+						fields: ['id'],
+						filter: {
+							_and: [{ name: { _eq: part } }, parentFilter],
+						},
+						limit: 1,
+					})
+				)[0]?.id;
+
+				if (!folderId) {
+					return busboy.emit('error', new InvalidPayloadException(`Invalid folder ${path}`));
+				}
+
+				parentFilter = { parent: { _eq: folderId } };
+			}
+
+			payload.folder = folderId;
 		}
 
 		const payloadWithRequiredFields: Partial<File> & {
