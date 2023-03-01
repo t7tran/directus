@@ -44,7 +44,7 @@ import {
 import { Knex } from 'knex';
 import { flatten, get, mapKeys, merge, omit, pick, set, transform, uniq } from 'lodash';
 import { clearSystemCache, getCache } from '../../cache';
-import { DEFAULT_AUTH_PROVIDER, GENERATE_SPECIAL } from '../../constants';
+import { COOKIE_OPTIONS, DEFAULT_AUTH_PROVIDER, GENERATE_SPECIAL } from '../../constants';
 import getDatabase from '../../database';
 import env from '../../env';
 import { ForbiddenException, GraphQLValidationException, InvalidPayloadException } from '../../exceptions';
@@ -86,7 +86,6 @@ import { GraphQLStringOrFloat } from './types/string-or-float';
 import { GraphQLVoid } from './types/void';
 
 import { FUNCTIONS } from '@directus/shared/constants';
-import { getMilliseconds } from '../../utils/get-milliseconds';
 import { GraphQLBigInt } from './types/bigint';
 import { GraphQLHash } from './types/hash';
 import { addPathToValidationError } from './utils/add-path-to-validation-error';
@@ -1996,14 +1995,11 @@ export class GraphQLService {
 						schema: this.schema,
 					});
 					const result = await authenticationService.login(DEFAULT_AUTH_PROVIDER, args, args?.otp);
+					if (env.ACCESS_TOKEN_COOKIE_NAME) {
+						res?.cookie(env.ACCESS_TOKEN_COOKIE_NAME, result.accessToken, COOKIE_OPTIONS.accessToken);
+					}
 					if (args.mode === 'cookie') {
-						res?.cookie(env.REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, {
-							httpOnly: true,
-							domain: env.REFRESH_TOKEN_COOKIE_DOMAIN,
-							maxAge: getMilliseconds(env.REFRESH_TOKEN_TTL),
-							secure: env.REFRESH_TOKEN_COOKIE_SECURE ?? false,
-							sameSite: (env.REFRESH_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
-						});
+						res?.cookie(env.REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, COOKIE_OPTIONS.refreshToken);
 					}
 					return {
 						access_token: result.accessToken,
@@ -2034,14 +2030,11 @@ export class GraphQLService {
 						throw new InvalidPayloadException(`"refresh_token" is required in either the JSON payload or Cookie`);
 					}
 					const result = await authenticationService.refresh(currentRefreshToken);
+					if (env.ACCESS_TOKEN_COOKIE_NAME) {
+						res?.cookie(env.ACCESS_TOKEN_COOKIE_NAME, result.accessToken, COOKIE_OPTIONS.accessToken);
+					}
 					if (args.mode === 'cookie') {
-						res?.cookie(env.REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, {
-							httpOnly: true,
-							domain: env.REFRESH_TOKEN_COOKIE_DOMAIN,
-							maxAge: getMilliseconds(env.REFRESH_TOKEN_TTL),
-							secure: env.REFRESH_TOKEN_COOKIE_SECURE ?? false,
-							sameSite: (env.REFRESH_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
-						});
+						res?.cookie(env.REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, COOKIE_OPTIONS.refreshToken);
 					}
 					return {
 						access_token: result.accessToken,
