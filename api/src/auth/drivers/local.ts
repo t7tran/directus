@@ -99,8 +99,11 @@ export function createLocalAuthRouter(provider: string): Router {
 				payload.data.refresh_token = refreshToken;
 			}
 
+			if (env.ACCESS_TOKEN_COOKIE_NAME) {
+				res.cookie(env.ACCESS_TOKEN_COOKIE_NAME, accessToken, COOKIE_OPTIONS.accessToken);
+			}
 			if (mode === 'cookie') {
-				res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, COOKIE_OPTIONS);
+				res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, COOKIE_OPTIONS.refreshToken);
 			}
 
 			res.locals.payload = payload;
