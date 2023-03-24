@@ -8,17 +8,24 @@ import env from './env';
 import { getConfigFromEnv } from './utils/get-config-from-env';
 import { redactHeaderCookie } from './utils/redact-header-cookies';
 
+const redactPaths = env.ACCESS_TOKEN_COOKIE_NAME
+	? [
+			'req.headers.authorization',
+			`req.cookies.${env.ACCESS_TOKEN_COOKIE_NAME}`,
+			`req.cookies.${env.REFRESH_TOKEN_COOKIE_NAME}`,
+	  ]
+	: ['req.headers.authorization', `req.cookies.${env.REFRESH_TOKEN_COOKIE_NAME}`];
 const pinoOptions: LoggerOptions = {
 	level: env.LOG_LEVEL || 'info',
 	redact: {
-		paths: ['req.headers.authorization', `req.cookies.${env.REFRESH_TOKEN_COOKIE_NAME}`],
+		paths: redactPaths,
 		censor: '--redact--',
 	},
 };
 const httpLoggerOptions: LoggerOptions = {
 	level: env.LOG_LEVEL || 'info',
 	redact: {
-		paths: ['req.headers.authorization', `req.cookies.${env.REFRESH_TOKEN_COOKIE_NAME}`],
+		paths: redactPaths,
 		censor: '--redact--',
 	},
 };

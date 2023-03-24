@@ -36,7 +36,10 @@ router.post(
 
 		const { accessToken, refreshToken, expires } = await service.login(req.body);
 
-		res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, COOKIE_OPTIONS);
+		if (env.ACCESS_TOKEN_COOKIE_NAME) {
+			res.cookie(env.ACCESS_TOKEN_COOKIE_NAME, accessToken, COOKIE_OPTIONS.accessToken);
+		}
+		res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, COOKIE_OPTIONS.refreshToken);
 
 		res.locals.payload = { data: { access_token: accessToken, expires } };
 

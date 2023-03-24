@@ -95,8 +95,11 @@ router.post(
 			payload.data.refresh_token = refreshToken;
 		}
 
+		if (env.ACCESS_TOKEN_COOKIE_NAME) {
+			res.cookie(env.ACCESS_TOKEN_COOKIE_NAME, accessToken, COOKIE_OPTIONS.accessToken);
+		}
 		if (mode === 'cookie') {
-			res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, COOKIE_OPTIONS);
+			res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, refreshToken, COOKIE_OPTIONS.refreshToken);
 		}
 
 		res.locals.payload = payload;
@@ -133,12 +136,10 @@ router.post(
 		await authenticationService.logout(currentRefreshToken);
 
 		if (req.cookies[env.REFRESH_TOKEN_COOKIE_NAME]) {
-			res.clearCookie(env.REFRESH_TOKEN_COOKIE_NAME, {
-				httpOnly: true,
-				domain: env.REFRESH_TOKEN_COOKIE_DOMAIN,
-				secure: env.REFRESH_TOKEN_COOKIE_SECURE ?? false,
-				sameSite: (env.REFRESH_TOKEN_COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
-			});
+			res.clearCookie(env.REFRESH_TOKEN_COOKIE_NAME, COOKIE_OPTIONS.refreshToken);
+		}
+		if (req.cookies[env.ACCESS_TOKEN_COOKIE_NAME]) {
+			res.clearCookie(env.ACCESS_TOKEN_COOKIE_NAME, COOKIE_OPTIONS.accessToken);
 		}
 
 		return next();
