@@ -1,8 +1,11 @@
+import env from '../env';
+
 /**
  * Extract access token from:
  *
  * Authorization: Bearer
  * access_token query parameter
+ * env.ACCESS_TOKEN_COOKIE_NAME cookie
  *
  * and store in req.token
  */
@@ -22,6 +25,10 @@ const extractToken: RequestHandler = (req, res, next) => {
 		if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
 			token = parts[1];
 		}
+	}
+
+	if (!token && env['ACCESS_TOKEN_COOKIE_NAME']) {
+		token = req.cookies[env['ACCESS_TOKEN_COOKIE_NAME']];
 	}
 
 	/**
