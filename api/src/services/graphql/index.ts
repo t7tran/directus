@@ -156,8 +156,11 @@ export class GraphQLService {
 		const formattedResult: FormattedExecutionResult = {};
 
 		if (result['data']) formattedResult.data = result['data'];
-		if (result['errors'])
+
+		if (result['errors']) {
 			formattedResult.errors = result['errors'].map((error) => processError(this.accountability, error));
+		}
+
 		if (result['extensions']) formattedResult.extensions = result['extensions'];
 
 		return formattedResult;
@@ -421,9 +424,9 @@ export class GraphQLService {
 						}
 
 						if (collection.primary === field.field) {
-							if (!field.defaultValue && !field.special.includes('uuid') && action === 'create')
+							if (!field.defaultValue && !field.special.includes('uuid') && action === 'create') {
 								type = new GraphQLNonNull(GraphQLID);
-							else if (['create', 'update'].includes(action)) type = GraphQLID;
+							} else if (['create', 'update'].includes(action)) type = GraphQLID;
 							else type = new GraphQLNonNull(GraphQLID);
 						}
 
@@ -1900,6 +1903,15 @@ export class GraphQLService {
 							execAllowedModules: {
 								type: new GraphQLList(GraphQLString),
 							},
+						},
+					}),
+				},
+				queryLimit: {
+					type: new GraphQLObjectType({
+						name: 'server_info_query_limit',
+						fields: {
+							default: { type: GraphQLInt },
+							max: { type: GraphQLInt },
 						},
 					}),
 				},
