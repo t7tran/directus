@@ -123,6 +123,7 @@
 		"joi": "17.9.1",
 		"js-yaml": "4.1.0",
 		"js2xmlparser": "5.0.0",
+		"jsdom": "22.0.0",
 		"json2csv": "5.0.7",
 		"jsonwebtoken": "9.0.0",
 		"keyv": "4.5.2",
@@ -161,6 +162,7 @@
 		"uuid": "9.0.0",
 		"uuid-validate": "0.0.3",
 		"vm2": "3.9.18",
+		"webdav-server": "2.6.2",
 		"wellknown": "0.5.0"
 	},
 	"devDependencies": {
