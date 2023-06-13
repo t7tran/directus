@@ -22,8 +22,8 @@ import { UsersService } from '../../services/users.js';
 import type { AuthDriverOptions, User } from '../../types/index.js';
 import asyncHandler from '../../utils/async-handler.js';
 import { getIPFromReq } from '../../utils/get-ip-from-req.js';
-import { getMilliseconds } from '../../utils/get-milliseconds.js';
 import { AuthDriver } from '../auth.js';
+import { COOKIE_OPTIONS } from '../../constants.js';
 
 interface UserInfo {
 	dn: string;
@@ -442,14 +442,12 @@ export function createLDAPAuthRouter(provider: string): Router {
 				payload['data']!['refresh_token'] = refreshToken;
 			}
 
+			if (env['ACCESS_TOKEN_COOKIE_NAME']) {
+				res.cookie(env['ACCESS_TOKEN_COOKIE_NAME'], accessToken, COOKIE_OPTIONS.accessToken);
+			}
+
 			if (mode === 'cookie') {
-				res.cookie(env['REFRESH_TOKEN_COOKIE_NAME'], refreshToken, {
-					httpOnly: true,
-					domain: env['REFRESH_TOKEN_COOKIE_DOMAIN'],
-					maxAge: getMilliseconds(env['REFRESH_TOKEN_TTL']),
-					secure: env['REFRESH_TOKEN_COOKIE_SECURE'] ?? false,
-					sameSite: (env['REFRESH_TOKEN_COOKIE_SAME_SITE'] as 'lax' | 'strict' | 'none') || 'strict',
-				});
+				res.cookie(env['REFRESH_TOKEN_COOKIE_NAME'], refreshToken, COOKIE_OPTIONS.refreshToken);
 			}
 
 			res.locals['payload'] = payload;
