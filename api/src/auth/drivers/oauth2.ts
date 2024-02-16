@@ -26,9 +26,9 @@ import type { AuthData, AuthDriverOptions, User } from '../../types/index.js';
 import asyncHandler from '../../utils/async-handler.js';
 import { getConfigFromEnv } from '../../utils/get-config-from-env.js';
 import { getIPFromReq } from '../../utils/get-ip-from-req.js';
-import { getMilliseconds } from '../../utils/get-milliseconds.js';
 import { Url } from '../../utils/url.js';
 import { LocalAuthDriver } from './local.js';
+import { COOKIE_OPTIONS } from '../../constants.js';
 
 export class OAuth2AuthDriver extends LocalAuthDriver {
 	client: Client;
@@ -399,14 +399,12 @@ export function createOAuth2AuthRouter(providerName: string): Router {
 
 			const { accessToken, refreshToken, expires } = authResponse;
 
+			if (env['ACCESS_TOKEN_COOKIE_NAME']) {
+				res.cookie(env['ACCESS_TOKEN_COOKIE_NAME'] as string, accessToken, COOKIE_OPTIONS.accessToken);
+			}
+
 			if (redirect) {
-				res.cookie(env['REFRESH_TOKEN_COOKIE_NAME'] as string, refreshToken, {
-					httpOnly: true,
-					domain: env['REFRESH_TOKEN_COOKIE_DOMAIN'] as string,
-					maxAge: getMilliseconds(env['REFRESH_TOKEN_TTL']),
-					secure: (env['REFRESH_TOKEN_COOKIE_SECURE'] as boolean) ?? false,
-					sameSite: (env['REFRESH_TOKEN_COOKIE_SAME_SITE'] as 'lax' | 'strict' | 'none') || 'strict',
-				});
+				res.cookie(env['REFRESH_TOKEN_COOKIE_NAME'] as string, refreshToken, COOKIE_OPTIONS.refreshToken);
 
 				return res.redirect(redirect);
 			}
