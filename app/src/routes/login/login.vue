@@ -69,7 +69,9 @@ const authenticated = computed(() => appStore.authenticated);
 						: t('not_authenticated')
 				}}
 			</div>
+			<component is="interface-presentation-custom-login-notice" :authenticated="authenticated" />
 		</template>
+
 	</public-view>
 </template>
 
