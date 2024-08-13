@@ -122,12 +122,28 @@ export class FilesService extends ItemsService {
 		};
 
 		try {
+			const { stream: streamAfterHooks, reason } = await emitter.emitFilter(
+				'files.upload',
+				{ stream, reason: "" },
+				{
+					payload,
+					collection: this.collection,
+				},
+				{
+					database: this.knex,
+					schema: this.schema,
+					accountability: this.accountability,
+				},
+			);
+
+			if (!streamAfterHooks) throw new InvalidPayloadError({ reason: reason || 'Invalid payload' });
+
 			// If this is a replacement, we'll write the file to a temp location first to ensure we don't overwrite the existing file if something goes wrong
 			if (isReplacement === true) {
-				await disk.write(tempFilenameDisk, stream, payload.type);
+				await disk.write(tempFilenameDisk, streamAfterHooks, payload.type);
 			} else {
 				// If this is a new file upload, we'll write the file to the final location
-				await disk.write(payload.filename_disk, stream, payload.type);
+				await disk.write(payload.filename_disk, streamAfterHooks, payload.type);
 			}
 
 			// Check if the file was truncated (if the stream ended early) and throw limit error if it was
