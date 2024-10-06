@@ -70,10 +70,11 @@ export class FilesService extends ItemsService<File> {
 
 		// Is this file a replacement? if the file data already exists and we have a primary key
 		const isReplacement = existingFile !== null && primaryKey !== undefined;
+		const emitFilterOpts: MutationOptions & Record<string, any> = { emitEvents: false, emitFilters: true };
 
 		// If this is a new file upload, we need to generate a new primary key and DB record
 		if (isReplacement === false || primaryKey === undefined) {
-			primaryKey = await this.createOne(payload, { emitEvents: false });
+			primaryKey = await this.createOne(payload, emitFilterOpts);
 		}
 
 		const fileExtension =
@@ -172,7 +173,7 @@ export class FilesService extends ItemsService<File> {
 			schema: this.schema,
 		});
 
-		await sudoService.updateOne(primaryKey, { ...payload, ...metadata }, { emitEvents: false });
+		await sudoService.updateOne(primaryKey, { ...payload, ...metadata }, emitFilterOpts);
 
 		if (opts?.emitEvents !== false) {
 			emitter.emitAction(
