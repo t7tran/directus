@@ -318,6 +318,15 @@ export function generateJoi(filter: FieldFilter | null, options?: JoiOptions): A
 			schema[key] = getAnySchema().invalid(null);
 		}
 
+		if (operator === '_exist') {
+			schema[key] = getAnySchema().exist();
+		}
+
+		if (operator === '_nexist') {
+			options.requireAll = false;
+			schema[key] = getAnySchema().forbidden();
+		}
+
 		if (operator === '_empty') {
 			schema[key] = getAnySchema().valid('');
 		}
