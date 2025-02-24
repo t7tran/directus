@@ -353,6 +353,35 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 				await getHelpers(trx).sequence.resetAutoIncrementSequence(this.collection, primaryKeyField);
 			}
 
+			if (opts.emitEvents !== false) {
+				const actionEvent = {
+					event:
+						this.eventScope === 'items'
+							? ['items.create', `${this.collection}.items.create`]
+							: `${this.eventScope}.create`,
+					meta: {
+						payload,
+						key: primaryKey,
+						collection: this.collection,
+					},
+					context: {
+						database: getDatabase(),
+						schema: this.schema,
+						accountability: this.accountability,
+					},
+				};
+
+				if (!opts.bypassEmitAction) {
+					emitter.emitAction(`transacted.${actionEvent.event}`, actionEvent.meta, actionEvent.context);
+				}
+
+				for (const nestedActionEvent of nestedActionEvents) {
+					if (!opts.bypassEmitAction) {
+						emitter.emitAction(`transacted.${nestedActionEvent.event}`, nestedActionEvent.meta, nestedActionEvent.context);
+					}
+				}
+			}
+
 			return primaryKey;
 		});
 
@@ -440,6 +469,14 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 					opts.onRequireUserIntegrityCheck(userIntegrityCheckFlags);
 				} else {
 					await validateUserCountIntegrity({ flags: userIntegrityCheckFlags, knex });
+				}
+			}
+
+			if (opts.emitEvents !== false) {
+				for (const nestedActionEvent of nestedActionEvents) {
+					if (!opts.bypassEmitAction) {
+						emitter.emitAction(`transacted.${nestedActionEvent.event}`, nestedActionEvent.meta, nestedActionEvent.context);
+					}
 				}
 			}
 
@@ -885,6 +922,35 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 					}
 				}
 			}
+
+			if (opts.emitEvents !== false) {
+				const actionEvent = {
+					event:
+						this.eventScope === 'items'
+							? ['items.update', `${this.collection}.items.update`]
+							: `${this.eventScope}.update`,
+					meta: {
+						payload: payloadWithPresets,
+						keys,
+						collection: this.collection,
+					},
+					context: {
+						database: getDatabase(),
+						schema: this.schema,
+						accountability: this.accountability,
+					},
+				};
+
+				if (!opts.bypassEmitAction) {
+					emitter.emitAction(`transacted.${actionEvent.event}`, actionEvent.meta, actionEvent.context);
+				}
+
+				for (const nestedActionEvent of nestedActionEvents) {
+					if (!opts.bypassEmitAction) {
+						emitter.emitAction(`transacted.${nestedActionEvent.event}`, nestedActionEvent.meta, nestedActionEvent.context);
+					}
+				}
+			}
 		});
 
 		if (shouldClearCache(this.cache, opts, this.collection)) {
@@ -1089,6 +1155,29 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 					})),
 					{ bypassLimits: true },
 				);
+			}
+
+			if (opts.emitEvents !== false) {
+				const actionEvent = {
+					event:
+						this.eventScope === 'items'
+							? ['items.delete', `${this.collection}.items.delete`]
+							: `${this.eventScope}.delete`,
+					meta: {
+						payload: keys,
+						keys: keys,
+						collection: this.collection,
+					},
+					context: {
+						database: getDatabase(),
+						schema: this.schema,
+						accountability: this.accountability,
+					},
+				};
+
+				if (!opts.bypassEmitAction) {
+					emitter.emitAction(`transacted.${actionEvent.event}`, actionEvent.meta, actionEvent.context);
+				}
 			}
 		});
 
