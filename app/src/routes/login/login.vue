@@ -81,6 +81,7 @@ useHead({
 				<v-icon name="lock" left />
 				{{ t('not_authenticated') }}
 			</template>
+			<component is="interface-presentation-custom-login-notice" :authenticated="authenticated" />
 		</template>
 	</public-view>
 </template>
