@@ -368,6 +368,23 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 				await getHelpers(trx).sequence.resetAutoIncrementSequence(this.collection, primaryKeyField);
 			}
 
+			if (opts.emitEvents !== false || (opts as any).emitFilters !== false)
+				await emitter.emitFilter(
+					this.eventScope === 'items'
+						? ['items.created', `${this.collection}.items.created`]
+						: `${this.eventScope}.created`,
+					payload,
+					{
+						keys: [primaryKey],
+						collection: this.collection,
+					},
+					{
+						database: trx,
+						schema: this.schema,
+						accountability: this.accountability,
+					},
+				);
+
 			return primaryKey;
 		});
 
@@ -896,6 +913,23 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 					}
 				}
 			}
+
+			if (opts.emitEvents !== false || (opts as any).emitFilters !== false)
+				await emitter.emitFilter(
+					this.eventScope === 'items'
+						? ['items.updated', `${this.collection}.items.updated`]
+						: `${this.eventScope}.updated`,
+					payloadWithPresets,
+					{
+						keys,
+						collection: this.collection,
+					},
+					{
+						database: this.knex,
+						schema: this.schema,
+						accountability: this.accountability,
+					},
+				);
 		});
 
 		if (shouldClearCache(this.cache, opts, this.collection)) {
@@ -1099,6 +1133,24 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 						item: key,
 					})),
 					{ bypassLimits: true },
+				);
+			}
+
+			if (opts.emitEvents !== false) {
+				await emitter.emitFilter(
+					this.eventScope === 'items'
+						? ['items.deleted', `${this.collection}.items.deleted`]
+						: `${this.eventScope}.deleted`,
+					keys,
+					{
+						keys,
+						collection: this.collection,
+					},
+					{
+						database: this.knex,
+						schema: this.schema,
+						accountability: this.accountability,
+					},
 				);
 			}
 		});
