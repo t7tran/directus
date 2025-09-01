@@ -82,11 +82,11 @@ export class AuthenticationService {
 			.where('id', userId)
 			.first();
 
-		const updatedPayload = await emitter.emitFilter(
-			'auth.login',
+		const emitFilterStatus = async (status: 'pending' | 'fail' | 'success', event = 'auth.login') => await emitter.emitFilter(
+			event,
 			payload,
 			{
-				status: 'pending',
+				status,
 				user: user?.id,
 				provider: providerName,
 			},
@@ -97,7 +97,10 @@ export class AuthenticationService {
 			},
 		);
 
-		const emitStatus = (status: 'fail' | 'success') => {
+		const updatedPayload = await emitFilterStatus('pending');
+
+		const emitStatus = async (status: 'fail' | 'success') => {
+			await emitFilterStatus(status, 'auth.loggedin');
 			emitter.emitAction(
 				'auth.login',
 				{
@@ -115,7 +118,7 @@ export class AuthenticationService {
 		};
 
 		if (user?.status !== 'active' || user?.provider !== providerName) {
-			emitStatus('fail');
+			await emitStatus('fail');
 			await stall(STALL_TIME, timeStart);
 			throw new InvalidCredentialsError();
 		}
@@ -153,13 +156,13 @@ export class AuthenticationService {
 		try {
 			await provider.login(clone(user), cloneDeep(updatedPayload));
 		} catch (e) {
-			emitStatus('fail');
+			await emitStatus('fail');
 			await stall(STALL_TIME, timeStart);
 			throw e;
 		}
 
 		if (user.tfa_secret && !options?.otp) {
-			emitStatus('fail');
+			await emitStatus('fail');
 			await stall(STALL_TIME, timeStart);
 			throw new InvalidOtpError();
 		}
@@ -169,7 +172,7 @@ export class AuthenticationService {
 			const otpValid = await tfaService.verifyOTP(user.id, options?.otp);
 
 			if (otpValid === false) {
-				emitStatus('fail');
+				await emitStatus('fail');
 				await stall(STALL_TIME, timeStart);
 				throw new InvalidOtpError();
 			}
@@ -244,7 +247,7 @@ export class AuthenticationService {
 
 		await this.knex('directus_users').update({ last_access: new Date() }).where({ id: user.id });
 
-		emitStatus('success');
+		await emitStatus('success');
 
 		if (allowedAttempts !== null) {
 			await loginAttemptsLimiter.set(user.id, 0, 0);
