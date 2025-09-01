@@ -151,7 +151,7 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 			// Run all hooks that are attached to this event so the end user has the chance to augment the
 			// item that is about to be saved
 			const payloadAfterHooks =
-				opts.emitEvents !== false
+				opts.emitEvents !== false || (opts as any).emitFilters !== false
 					? await emitter.emitFilter(
 							this.eventScope === 'items'
 								? ['items.create', `${this.collection}.items.create`]
@@ -714,7 +714,7 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 		// Run all hooks that are attached to this event so the end user has the chance to augment the
 		// item that is about to be saved
 		const payloadAfterHooks =
-			opts.emitEvents !== false
+			opts.emitEvents !== false || (opts as any).emitFilters !== false
 				? await emitter.emitFilter(
 						this.eventScope === 'items'
 							? ['items.update', `${this.collection}.items.update`]
