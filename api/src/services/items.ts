@@ -152,7 +152,7 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 			// Run all hooks that are attached to this event so the end user has the chance to augment the
 			// item that is about to be saved
 			const payloadAfterHooks =
-				opts.emitEvents !== false
+				opts.emitEvents !== false || (opts as any).emitFilters !== false
 					? await emitter.emitFilter(
 							this.eventScope === 'items'
 								? ['items.create', `${this.collection}.items.create`]
@@ -381,6 +381,23 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 			if (opts.onItemCreate) {
 				opts.onItemCreate(this.collection, primaryKey);
 			}
+
+			if (opts.emitEvents !== false)
+				await emitter.emitFilter(
+					this.eventScope === 'items'
+						? ['items.created', `${this.collection}.items.created`]
+						: `${this.eventScope}.created`,
+					payload,
+					{
+						keys: [primaryKey],
+						collection: this.collection,
+					},
+					{
+						database: trx,
+						schema: this.schema,
+						accountability: this.accountability,
+					},
+				);
 
 			return primaryKey;
 		});
@@ -728,7 +745,7 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 		// Run all hooks that are attached to this event so the end user has the chance to augment the
 		// item that is about to be saved
 		const payloadAfterHooks =
-			opts.emitEvents !== false
+			opts.emitEvents !== false || (opts as any).emitFilters !== false
 				? await emitter.emitFilter(
 						this.eventScope === 'items'
 							? ['items.update', `${this.collection}.items.update`]
@@ -931,6 +948,23 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 					}
 				}
 			}
+
+			if (opts.emitEvents !== false)
+				await emitter.emitFilter(
+					this.eventScope === 'items'
+						? ['items.updated', `${this.collection}.items.updated`]
+						: `${this.eventScope}.updated`,
+					payloadWithPresets,
+					{
+						keys,
+						collection: this.collection,
+					},
+					{
+						database: this.knex,
+						schema: this.schema,
+						accountability: this.accountability,
+					},
+				);
 		});
 
 		if (shouldClearCache(this.cache, opts, this.collection)) {
@@ -1148,6 +1182,24 @@ export class ItemsService<Item extends AnyItem = AnyItem, Collection extends str
 						item: key,
 					})),
 					{ bypassLimits: true },
+				);
+			}
+
+			if (opts.emitEvents !== false) {
+				await emitter.emitFilter(
+					this.eventScope === 'items'
+						? ['items.deleted', `${this.collection}.items.deleted`]
+						: `${this.eventScope}.deleted`,
+					keys,
+					{
+						keys,
+						collection: this.collection,
+					},
+					{
+						database: this.knex,
+						schema: this.schema,
+						accountability: this.accountability,
+					},
 				);
 			}
 		});

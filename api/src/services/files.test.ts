@@ -214,8 +214,10 @@ describe('Service / Files', () => {
 				expect.objectContaining({
 					...mockData,
 					uploaded_on: mockDate.toISOString(),
+					filename_disk: `${sample.id}.jpg`,
+					filesize: sample.filesize,
 				}),
-				{ emitEvents: false },
+				{ emitEvents: false, emitFilters: true },
 			);
 		});
 
@@ -250,8 +252,9 @@ describe('Service / Files', () => {
 					...mockDataJPG,
 					uploaded_on: mockDate.toISOString(),
 					filename_disk: `${sample.id}.jpg`,
+					filesize: sample.filesize,
 				}),
-				{ emitEvents: false },
+				{ emitEvents: false, emitFilters: true },
 			);
 
 			await service.uploadOne(new PassThrough(), mockDataPNG);
