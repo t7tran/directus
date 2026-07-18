@@ -70,20 +70,27 @@ export class AuthenticationService {
 
 		const provider = getAuthProvider(providerName);
 
-		const emitFilterStatus = async (status: 'pending' | 'fail' | 'success', event = 'auth.login'): Promise<any> => await emitter.emitFilter(
-			event,
-			payload,
-			{
-				status,
-				user: user?.id,
-				provider: providerName,
-			},
-			{
-				database: this.knex,
-				schema: this.schema,
-				accountability: this.accountability,
-			},
-		);
+		// The user is passed in explicitly rather than closed over: emitStatus('fail', …) can run in the
+		// getUserID catch block below before the user lookup has happened, so there may be no user yet
+		const emitFilterStatus = async (
+			status: 'pending' | 'fail' | 'success',
+			statusUser: User | undefined,
+			event = 'auth.login',
+		): Promise<any> =>
+			await emitter.emitFilter(
+				event,
+				payload,
+				{
+					status,
+					user: statusUser?.id,
+					provider: providerName,
+				},
+				{
+					database: this.knex,
+					schema: this.schema,
+					accountability: this.accountability,
+				},
+			);
 
 		const emitStatus = async (
 			status: 'fail' | 'success',
@@ -91,7 +98,7 @@ export class AuthenticationService {
 			loginUser: User | undefined,
 			error?: unknown,
 		): Promise<void> => {
-			await emitFilterStatus(status, 'auth.loggedin');
+			await emitFilterStatus(status, loginUser, 'auth.loggedin');
 
 			emitter.emitAction(
 				'auth.login',
@@ -128,7 +135,7 @@ export class AuthenticationService {
 			.where('id', userId)
 			.first();
 
-		const updatedPayload = await emitFilterStatus('pending');
+		const updatedPayload = await emitFilterStatus('pending', user);
 
 		if (user?.status !== 'active' || user?.provider !== providerName) {
 			const loginError = new InvalidCredentialsError();
