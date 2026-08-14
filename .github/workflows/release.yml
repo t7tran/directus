@@ -86,9 +86,9 @@ jobs:
           - name: standard
             suffix: ''
             file: ./Dockerfile
-          - name: dhi
-            suffix: '-dhi'
-            file: ./Dockerfile.dhi
+          # - name: dhi
+          #   suffix: '-dhi'
+          #   file: ./Dockerfile.dhi
         platform:
           - linux/amd64
           - linux/arm64
@@ -223,8 +223,8 @@ jobs:
         variant:
           - name: standard
             suffix: ''
-          - name: dhi
-            suffix: '-dhi'
+          # - name: dhi
+          #   suffix: '-dhi'
     permissions:
       actions: write
       attestations: write
