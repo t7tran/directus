@@ -43,6 +43,7 @@ const providerSelect = computed({
 	},
 });
 
+const customLoginInterface = 'interface-presentation-custom-login-notice';
 const authenticated = computed(() => appStore.authenticated);
 
 useHead({
@@ -86,6 +87,7 @@ useHead({
 				<VIcon name="lock" left />
 				{{ $t('not_authenticated') }}
 			</template>
+			<component :is="customLoginInterface" :authenticated="authenticated" />
 		</template>
 	</PublicView>
 </template>
