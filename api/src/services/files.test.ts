@@ -154,6 +154,9 @@ describe('Service / Files', () => {
 			mockStorage = createMockStorage(mockDriver);
 			vi.mocked(getStorage).mockResolvedValue(mockStorage);
 
+			// filesize is read back from the driver's stat() after the file is written
+			vi.mocked(mockDriver.stat).mockResolvedValue({ size: sample.filesize, modified: new Date() });
+
 			tracker.on.select('select "storage_default_folder" from "directus_settings"').response([]);
 
 			vi.spyOn(ItemsService.prototype, 'createOne').mockResolvedValue(sample.id);
@@ -214,8 +217,10 @@ describe('Service / Files', () => {
 				expect.objectContaining({
 					...mockData,
 					uploaded_on: mockDate.toISOString(),
+					filename_disk: `${sample.id}.jpg`,
+					filesize: sample.filesize,
 				}),
-				{ emitEvents: false },
+				{ emitEvents: false, emitFilters: true },
 			);
 		});
 
@@ -250,8 +255,9 @@ describe('Service / Files', () => {
 					...mockDataJPG,
 					uploaded_on: mockDate.toISOString(),
 					filename_disk: `${sample.id}.jpg`,
+					filesize: sample.filesize,
 				}),
-				{ emitEvents: false },
+				{ emitEvents: false, emitFilters: true },
 			);
 
 			await service.uploadOne(new PassThrough(), mockDataPNG);
@@ -263,7 +269,7 @@ describe('Service / Files', () => {
 					uploaded_on: mockDate.toISOString(),
 					filename_disk: `${sample.id}.png`,
 				}),
-				{ emitEvents: false },
+				{ emitEvents: false, emitFilters: true },
 			);
 
 			vi.useRealTimers();
@@ -289,7 +295,7 @@ describe('Service / Files', () => {
 					expect.objectContaining({
 						storage: 'local',
 					}),
-					{ emitEvents: false },
+					{ emitEvents: false, emitFilters: true },
 				);
 			});
 
@@ -313,7 +319,7 @@ describe('Service / Files', () => {
 					expect.objectContaining({
 						storage: 's3',
 					}),
-					{ emitEvents: false },
+					{ emitEvents: false, emitFilters: true },
 				);
 			});
 
